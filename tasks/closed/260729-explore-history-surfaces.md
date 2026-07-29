@@ -39,8 +39,8 @@ enough to freeze a manifest schema or divide implementation safely.
 
 ## Known Facts / Assumptions / Unknowns
 - Fact: raw Git and jj commands may be used here as compatibility inspection.
-- Fact: exploration is read-only and must not fetch, create refs, or rewrite
-  repositories.
+- Fact: existing repositories are read-only; controlled temporary fixtures may
+  fetch locally, create refs, or rewrite their own disposable history.
 - Assumption: existing Git-only and colocated repositories provide enough
   initial evidence to narrow fixture design.
 - Unknown: whether a representative jj-only repository is locally available.
@@ -73,7 +73,7 @@ enough to freeze a manifest schema or divide implementation safely.
 
 ## Out of Bounds
 - Package source and tests.
-- Network fetches or repository mutations.
+- Network fetches or mutations to non-fixture repositories.
 - Final manifest schema selection.
 
 ## Evidence
@@ -90,6 +90,17 @@ enough to freeze a manifest schema or divide implementation safely.
 - The note enumerates controlled before/after fixtures required for fetch,
   off-current work, force movement, conflicts, divergence, hidden history,
   null root, and errors.
+- Controlled Git fixtures confirmed fetch-introduced and local-only
+  off-current work, annotated-tag peeling, non-ancestral force movement,
+  ref deletion, and immediate loss of deleted-remote reflog visibility.
+- A controlled jj fetch confirmed that new remote-only work appears as an
+  untracked remote bookmark requiring `--all-remotes`; a subsequent fetch
+  grounded fast-forward ancestry.
+- Independent non-colocated jj fixtures confirmed the internal Git store,
+  explicit null root, hidden rewrite predecessors, unbookmarked visible heads,
+  divergent commit IDs sharing a change ID, and multi-target bookmark
+  conflicts.
+- No package source or tests were changed.
 
 ## Decisions
 - Owner: Codex `/root`; claimed 2026-07-29.
@@ -101,13 +112,19 @@ enough to freeze a manifest schema or divide implementation safely.
   identity.
 - Keep the task active until controlled before/after fixtures ground the
   missing movement states.
+- Classify ref transitions using prior/new target sets plus ancestry, not
+  human-oriented fetch or reflog messages.
+- Preserve annotated ref objects separately from peeled commit targets.
+- Include jj untracked remote bookmarks, visible heads, and working copies in
+  the default factual surface.
+- Model jj bookmark targets as sets with explicit conflict state.
 
 ## Open Fronts
-- Controlled Git fetch/off-current/force-movement fixtures.
-- Independent jj-only, conflict/divergence, hidden-history, and null-root
-  fixtures.
-- Portable repository/store identity and retention-policy questions.
+- Portable repository/store identity and retention-policy questions move
+  forward into the manifest contract.
+- Optional reflog and jj operation-history policy remains unresolved.
+- Partial collection errors need explicit manifest placement.
 
 ## Next Actions
-- Build controlled temporary fixtures for the missing before/after states,
-  without touching package source or tests.
+- Draft the first versioned history/snapshot/ref/delta contract in the parent
+  task.

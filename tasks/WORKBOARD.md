@@ -13,15 +13,16 @@
 
 ## 1. Open Queue
 
-- `260729-explore-history-surfaces` — active and claimed; initial Git-only,
-  colocated, and linked-workspace survey recorded, with controlled
-  before/after fixtures next.
 - `260728-movement-snapshot-package` — inception; defines package extraction
   and the factual movement model for refs, snapshots, deltas, descriptions,
   and task lifecycle evidence.
 
 ## 2. Recent Closures
 
+- `260729-explore-history-surfaces` — grounded the history contract in local
+  Git-only, colocated, linked-workspace, and controlled before/after fixtures
+  covering fetches, off-current work, tags, ref movement/deletion, jj null
+  root, hidden rewrites, divergence, and bookmark conflicts.
 - `260729-enforce-total-coverage` — expanded the suite to 47 tests covering
   every measured statement and branch, raised the gate to 100%, and reduced
   successful terminal reports to the aggregate coverage row.

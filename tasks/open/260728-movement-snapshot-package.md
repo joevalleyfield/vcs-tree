@@ -79,7 +79,7 @@ future recurring workspace pulses can compare and summarize.
 
 ## Transformations
 - Package extraction completed under `260729-package-python-project`.
-- Git/jj surface exploration is tracked under
+- Git/jj surface exploration completed under
   `260729-explore-history-surfaces`.
 - Snapshot, ref, and delta transformations remain to be decomposed after their
   contract is explicit.
@@ -89,8 +89,8 @@ future recurring workspace pulses can compare and summarize.
   tests, 88.12% branch coverage, passing Ruff checks, build artifacts, and a
   behavior-compatible empty-directory smoke scan.
 - `planning/history-surface-exploration.md` begins the native-surface contract
-  with Git-only, colocated, and linked-workspace evidence and identifies
-  controlled fixtures still required.
+  with Git-only, colocated, linked-workspace, and controlled before/after
+  fixture evidence.
 - A written snapshot/ref/delta contract grounded in representative repositories.
 - Compatibility checks against the baseline tree output.
 - Focused fixtures for Git, jj, colocation, null-root, dirty, and error states.
@@ -103,6 +103,11 @@ future recurring workspace pulses can compare and summarize.
   and non-current-branch activity.
 - Prefer a deduplicated history store keyed by native object identity, with
   snapshots recording current ref topology and newly observed objects.
+- Use explicit selected Git ref namespaces rather than raw `--all` in
+  colocation.
+- Preserve annotated ref objects separately from peeled commit roots.
+- Use commit ID for jj graph identity, retain change ID as logical identity,
+  and represent conflicted bookmark target sets explicitly.
 
 ## Open Fronts
 - Snapshot persistence and cache migration.
@@ -114,5 +119,5 @@ future recurring workspace pulses can compare and summarize.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Complete `260729-explore-history-surfaces`, then draft the first
-  history/snapshot/ref/delta contract against its evidence.
+- Draft the first versioned history/snapshot/ref/delta contract against
+  `planning/history-surface-exploration.md`.
