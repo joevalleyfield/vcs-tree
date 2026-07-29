@@ -17,8 +17,9 @@ Extract the scanner behind a stable data model that can describe repository
 movement without conflating movement with progress.
 
 ## Current Reality
-The baseline script emits a present-state tree and saves a cache shaped around
-that renderer. It does not expose a stable package API, versioned snapshot
+The baseline behavior now has an installable, tested `src/` package boundary
+and console entry point. Its present-state collection and cache remain shaped
+around the existing renderer; it does not yet expose a versioned snapshot
 schema, normalized refs, or snapshot-to-snapshot descriptions.
 
 ## Desired Reality
@@ -59,22 +60,29 @@ future recurring workspace pulses can compare and summarize.
 - Recording every ref or file detail may make frequent pulses noisy and slow.
 
 ## Transformations
-To be decomposed after the snapshot and ref contract is explicit.
+- Package extraction completed under `260729-package-python-project`.
+- Snapshot, ref, and delta transformations remain to be decomposed after their
+  contract is explicit.
 
 ## Evidence
+- The package follow-on closed with a locked Python 3.9+ project, 26 passing
+  tests, 88.12% branch coverage, passing Ruff checks, build artifacts, and a
+  behavior-compatible empty-directory smoke scan.
 - A written snapshot/ref/delta contract grounded in representative repositories.
 - Compatibility checks against the baseline tree output.
 - Focused fixtures for Git, jj, colocation, null-root, dirty, and error states.
 
 ## Decisions
-None yet.
+- Preserve the standalone script as a byte-identical compatibility reference
+  while new behavior develops through the package.
+- Separate behavior-preserving package extraction from new movement semantics.
 
 ## Open Fronts
-- Package module boundaries.
 - Snapshot persistence and cache migration.
 - Ref normalization.
 - Delta description vocabulary.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Inspect representative local Git/jj outputs and draft the first contract.
+- Inspect representative local Git/jj ref outputs and draft the first
+  snapshot/ref/delta contract against the extracted package.

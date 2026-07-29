@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vcs-tree"
+version = "0.1.0"
+description = "Inventory Git and Jujutsu repositories in a compact tree"
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["git", "jujutsu", "repository", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.scripts]
+vcs-tree = "vcs_tree.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vcs_tree"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.python-version",
+  "/README.md",
+  "/pyproject.toml",
+  "/src",
+  "/tests",
+  "/uv.lock",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+  "--cov=vcs_tree",
+  "--cov-report=term-missing",
+  "--cov-fail-under=85",
+]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["vcs_tree"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+extend-exclude = ["vcs-tree.py"]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["vcs_tree"]

@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
 > **Status:** Incubating
-> **Last Sync:** 2026-07-28
+> **Last Sync:** 2026-07-29
 
 ## 0. Manual Triage
 
@@ -19,6 +19,10 @@
 
 ## 2. Recent Closures
 
+- `260729-package-python-project` — established the installable Python 3.9+
+  `src/` package, `vcs-tree` entry point, uv lockfile, pytest branch-coverage
+  gate, Ruff checks, build artifacts, and compatibility evidence while leaving
+  the standalone baseline and live resource command unchanged.
 - `260728-bootstrap-vcs-tree-incubator` — established the independent
   Git+jj-colocated project, byte-identical scanner copy, README, AGENTS,
   inbox, task discipline, root allowlist entry, and smoke evidence without

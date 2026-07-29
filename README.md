@@ -10,14 +10,50 @@ The copy here may evolve without silently changing that operational surface.
 
 ## Current State
 
-- `vcs-tree.py` is an unchanged baseline copy of
-  `../../Resources/tools/vcs-tree.py`.
-- There is no package extraction or installed entry point yet.
-- Run the copied baseline directly:
+- The scanner is available as the importable `vcs_tree` package.
+- Installing the project provides a `vcs-tree` command.
+- `vcs-tree.py` remains an unchanged baseline copy of
+  `../../Resources/tools/vcs-tree.py` for extraction compatibility checks.
+- The resource script and wrapper remain the live operational command until a
+  separately tasked cutover.
+
+Run the packaged command without installing it globally:
 
   ```bash
-  python3 vcs-tree.py ~/Documents
+  uv run vcs-tree ~/Documents
   ```
+
+Use `--flat` to omit directory grouping and `--text-symbols` for ASCII repo
+type markers. The module form is equivalent:
+
+```bash
+uv run python -m vcs_tree ~/Documents
+```
+
+## Development
+
+The project supports Python 3.9 and newer. uv creates the local environment
+from `pyproject.toml` and `uv.lock`:
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv build
+```
+
+pytest enforces branch coverage for the package. Ruff checks the extracted
+package and tests while deliberately excluding `vcs-tree.py`, whose exact
+bytes are retained as compatibility evidence.
+
+The package layout is:
+
+```text
+src/vcs_tree/
+├── cli.py       # argument parsing and installed entry point
+└── scanner.py   # discovery, collection, rendering, and cache behavior
+```
 
 ## Direction
 
@@ -63,4 +99,3 @@ task.
 - `tasks/open/` — active and inception work
 - `tasks/closed/` — completed task evidence
 - `tasks/WORKBOARD.md` — current operational index
-
