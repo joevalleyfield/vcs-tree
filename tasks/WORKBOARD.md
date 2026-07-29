@@ -19,6 +19,9 @@
 
 ## 2. Recent Closures
 
+- `260729-enforce-total-coverage` — expanded the suite to 47 tests covering
+  every measured statement and branch, raised the gate to 100%, and reduced
+  successful terminal reports to the aggregate coverage row.
 - `260729-package-python-project` — established the installable Python 3.9+
   `src/` package, `vcs-tree` entry point, uv lockfile, pytest branch-coverage
   gate, Ruff checks, build artifacts, and compatibility evidence while leaving

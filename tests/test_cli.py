@@ -1,3 +1,4 @@
+import runpy
 from unittest.mock import Mock
 
 import pytest
@@ -26,3 +27,10 @@ def test_help_exits_successfully(capsys):
         cli.main(["--help"])
 
     assert "Parallel VCS repo scanner" in capsys.readouterr().out
+
+
+def test_module_launcher_exits_with_main_result(monkeypatch):
+    monkeypatch.setattr(cli, "main", lambda: 7)
+
+    with pytest.raises(SystemExit, match="7"):
+        runpy.run_module("vcs_tree.__main__", run_name="__main__")

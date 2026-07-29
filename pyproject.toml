@@ -48,8 +48,8 @@ addopts = [
   "--strict-config",
   "--strict-markers",
   "--cov=vcs_tree",
-  "--cov-report=term-missing",
-  "--cov-fail-under=85",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-fail-under=100",
 ]
 testpaths = ["tests"]
 

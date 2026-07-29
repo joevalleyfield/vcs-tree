@@ -43,9 +43,11 @@ uv run ruff format --check .
 uv build
 ```
 
-pytest enforces branch coverage for the package. Ruff checks the extracted
-package and tests while deliberately excluding `vcs-tree.py`, whose exact
-bytes are retained as compatibility evidence.
+pytest enforces 100% statement and branch coverage for the package. Its
+terminal report hides fully covered files, so any detail row points directly
+to a regression. Ruff checks the extracted package and tests while deliberately
+excluding `vcs-tree.py`, whose exact bytes are retained as compatibility
+evidence.
 
 The package layout is:
 
