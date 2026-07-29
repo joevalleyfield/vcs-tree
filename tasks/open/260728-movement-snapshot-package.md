@@ -81,8 +81,10 @@ future recurring workspace pulses can compare and summarize.
 - Package extraction completed under `260729-package-python-project`.
 - Git/jj surface exploration completed under
   `260729-explore-history-surfaces`.
+- Draft snapshot and delta contracts completed under
+  `260729-draft-history-contracts`.
 - Snapshot, ref, and delta transformations remain to be decomposed after their
-  contract is explicit.
+  contract policy questions are reviewed.
 
 ## Evidence
 - The package follow-on closed with a locked Python 3.9+ project, 26 passing
@@ -91,7 +93,9 @@ future recurring workspace pulses can compare and summarize.
 - `planning/history-surface-exploration.md` begins the native-surface contract
   with Git-only, colocated, linked-workspace, and controlled before/after
   fixture evidence.
-- A written snapshot/ref/delta contract grounded in representative repositories.
+- `docs/contracts/history-snapshot-v1.md` and
+  `docs/contracts/history-delta-v1.md` provide versioned draft contracts
+  grounded in that evidence.
 - Compatibility checks against the baseline tree output.
 - Focused fixtures for Git, jj, colocation, null-root, dirty, and error states.
 
@@ -108,16 +112,20 @@ future recurring workspace pulses can compare and summarize.
 - Preserve annotated ref objects separately from peeled commit roots.
 - Use commit ID for jj graph identity, retain change ID as logical identity,
   and represent conflicted bookmark target sets explicitly.
+- Store immutable history objects once in an append-only ledger and make
+  lightweight snapshots reference a ledger generation.
+- Require complete before/after components for deletion and movement events;
+  partial collection produces explicit indeterminacy.
+- Define off-current history against every observed target workspace head.
 
 ## Open Fronts
 - Snapshot persistence and cache migration.
-- Ref normalization.
-- Observed-history boundary, unreachable-history retention, and optional Git
-  reflog/dangling-object coverage.
-- jj change identity versus commit identity.
-- Delta description vocabulary.
+- Portable repository identity and unreachable-history retention policy.
+- Optional Git reflog/dangling and jj operation-history depth.
+- Export-bundle framing for ledger-dependent snapshots.
+- Large event paging and shallow-history boundaries.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Draft the first versioned history/snapshot/ref/delta contract against
-  `planning/history-surface-exploration.md`.
+- Review contract policy questions, then decompose ledger, snapshot collector,
+  and delta implementation.

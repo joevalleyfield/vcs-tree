@@ -19,6 +19,9 @@
 
 ## 2. Recent Closures
 
+- `260729-draft-history-contracts` — produced versioned draft contracts for
+  append-only history storage, lightweight topology snapshots, completeness
+  gates, and factual movement deltas with parse-checked examples.
 - `260729-explore-history-surfaces` — grounded the history contract in local
   Git-only, colocated, linked-workspace, and controlled before/after fixtures
   covering fetches, off-current work, tags, ref movement/deletion, jj null
