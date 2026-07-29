@@ -29,6 +29,8 @@ The project has a package boundary and factual movement model supporting:
 - working-copy state and explicit errors;
 - real commit dates and jj null-root `00000000`;
 - refs/bookmarks and their movement;
+- enough full observed history to detect fetched lines of work and activity
+  outside the current branch or bookmark;
 - versioned snapshots and deltas;
 - commit/change identifiers and short descriptions;
 - task-file creation and closure evidence derived from deltas.
@@ -42,25 +44,43 @@ future recurring workspace pulses can compare and summarize.
 - Fact: descriptions should remain factual; movement assessment belongs to a
   higher-level consumer.
 - Fact: colocation is a first-class repository mode.
+- Fact: the movement feed must notice work outside the current checkout,
+  including a fetch that introduces an unrelated line of history.
 - Assumption: a versioned JSON snapshot is the first durable interchange
   surface.
+- Assumption: history records should be content-addressed and deduplicated,
+  while each snapshot records the ref topology that made history observable.
+- Assumption: the default observed-history boundary includes commits reachable
+  from local refs, remote-tracking refs, tags, and jj visible heads.
 - Unknown: which refs belong in the default collection and how remote/tracking
   refs should be normalized across Git and jj.
+- Unknown: whether Git reflogs and dangling objects belong in an optional deep
+  mode.
+- Unknown: how long unreachable history remains locally retained.
+- Unknown: how jj change IDs and commit IDs participate in stable identity.
 - Unknown: whether task movement begins as generic path evidence or
   project-specific adapters.
 
 ## Investigations
 - Inventory Git and jj ref/bookmark surfaces available locally.
+- Inventory Git and jj commands that expose complete reachable history,
+  parents, ref targets, visible heads, and native identifiers.
 - Identify the minimum snapshot identity needed for reliable deltas.
 - Locate seams that permit behavior-preserving extraction from the baseline.
 
 ## Models / Forecasts / Risks
 - Combining extraction and new semantics risks losing compatibility evidence.
 - A renderer-shaped schema will make later consumers brittle.
-- Recording every ref or file detail may make frequent pulses noisy and slow.
+- Repeating the entire history graph in every snapshot would make frequent
+  pulses noisy, slow, and unnecessarily large.
+- Recording only the current branch would miss fetched or parallel work.
+- A shared append-only history store plus lightweight ref-topology snapshots
+  can preserve observations without repeated graph copies.
 
 ## Transformations
 - Package extraction completed under `260729-package-python-project`.
+- Git/jj surface exploration is tracked under
+  `260729-explore-history-surfaces`.
 - Snapshot, ref, and delta transformations remain to be decomposed after their
   contract is explicit.
 
@@ -68,6 +88,9 @@ future recurring workspace pulses can compare and summarize.
 - The package follow-on closed with a locked Python 3.9+ project, 26 passing
   tests, 88.12% branch coverage, passing Ruff checks, build artifacts, and a
   behavior-compatible empty-directory smoke scan.
+- `planning/history-surface-exploration.md` begins the native-surface contract
+  with Git-only, colocated, and linked-workspace evidence and identifies
+  controlled fixtures still required.
 - A written snapshot/ref/delta contract grounded in representative repositories.
 - Compatibility checks against the baseline tree output.
 - Focused fixtures for Git, jj, colocation, null-root, dirty, and error states.
@@ -76,13 +99,20 @@ future recurring workspace pulses can compare and summarize.
 - Preserve the standalone script as a byte-identical compatibility reference
   while new behavior develops through the package.
 - Separate behavior-preserving package extraction from new movement semantics.
+- Retain enough full observed history to recognize new fetched lines of work
+  and non-current-branch activity.
+- Prefer a deduplicated history store keyed by native object identity, with
+  snapshots recording current ref topology and newly observed objects.
 
 ## Open Fronts
 - Snapshot persistence and cache migration.
 - Ref normalization.
+- Observed-history boundary, unreachable-history retention, and optional Git
+  reflog/dangling-object coverage.
+- jj change identity versus commit identity.
 - Delta description vocabulary.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Inspect representative local Git/jj ref outputs and draft the first
-  snapshot/ref/delta contract against the extracted package.
+- Complete `260729-explore-history-surfaces`, then draft the first
+  history/snapshot/ref/delta contract against its evidence.

@@ -13,6 +13,9 @@
 
 ## 1. Open Queue
 
+- `260729-explore-history-surfaces` — active and claimed; initial Git-only,
+  colocated, and linked-workspace survey recorded, with controlled
+  before/after fixtures next.
 - `260728-movement-snapshot-package` — inception; defines package extraction
   and the factual movement model for refs, snapshots, deltas, descriptions,
   and task lifecycle evidence.
