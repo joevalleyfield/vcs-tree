@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
 > **Status:** Incubating
-> **Last Sync:** 2026-07-29
+> **Last Sync:** 2026-08-01
 
 ## 0. Manual Triage
 
@@ -13,12 +13,15 @@
 
 ## 1. Open Queue
 
-- `260728-movement-snapshot-package` — inception; defines package extraction
-  and the factual movement model for refs, snapshots, deltas, descriptions,
-  and task lifecycle evidence.
+- `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
+  defaults are ready to decompose into ledger, adapter, snapshot, and delta
+  implementation tasks.
 
 ## 2. Recent Closures
 
+- `260801-settle-v1-policy-defaults` — fixed v1 local identity, single-writer
+  state, indefinite retention, corruption isolation, explicit incomplete
+  ancestry, and inline payload defaults with an immediate cache warning.
 - `260729-draft-history-contracts` — produced versioned draft contracts for
   append-only history storage, lightweight topology snapshots, completeness
   gates, and factual movement deltas with parse-checked examples.

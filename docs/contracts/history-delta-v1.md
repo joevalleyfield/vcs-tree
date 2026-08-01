@@ -108,8 +108,8 @@ Rules:
 
 1. `ref_created`, `ref_deleted`, and `ref_target_changed` require complete ref
    collection in both snapshots.
-2. Reachability and ancestry classifications require all referenced objects
-   and parent edges through the comparison boundary.
+2. Ref target changes remain observable when ancestry is incomplete, but their
+   ancestry relation and movement MUST be `unknown`.
 3. Workspace additions, removals, and head changes require complete workspace
    collection in both snapshots.
 4. File evidence requires complete file-change details for the relevant
@@ -120,6 +120,9 @@ Rules:
 6. `history_first_observed` remains factual when the ledger records first
    observation in the target generation, even if an earlier scan was partial.
    It MUST NOT be described as object creation.
+7. History reachability events require all referenced objects and parent edges
+   through the comparison boundary. Otherwise they are suppressed and
+   `comparison_incomplete` identifies the boundary.
 
 ## Repository Events
 
@@ -264,6 +267,10 @@ For a normal single-target ref, `movement` is:
 - `rewind`;
 - `diverged`;
 - `unknown`.
+
+`movement` MUST be `unknown` when either snapshot marks relevant ancestry as
+`shallow`, `partial`, or `unknown`, unless the requested relation can be proven
+without crossing that boundary.
 
 Conflicted or multi-target refs MUST expose pairwise `relations` and use
 `movement: "target_set_changed"` rather than collapsing to one scalar
@@ -421,6 +428,19 @@ Within one repository delta, writers MUST sort by:
 List-valued IDs and authorities MUST be sorted deterministically. Native parent
 order remains unchanged where included.
 
+## V1 Payload Representation
+
+V1 stores event ID lists inline. It does not page lists or replace them with
+side-record references.
+
+Writers MUST NOT silently truncate an inline list. If a configured resource
+limit prevents complete materialization, the affected component or delta
+outcome MUST be `partial` or `error` with `kind: "limit_exceeded"`. Events that
+depend on the omitted IDs are then governed by the completeness gate.
+
+Paging or content-addressed side records require evidence of actual scale
+pressure and a later compatible contract extension or schema version.
+
 ## Worked Remote-Only Example
 
 Source snapshot:
@@ -498,6 +518,11 @@ but a passive scan says only that remote-tracking history became observable.
 6. Reachability loss never deletes immutable ledger records.
 7. Off-current means outside all observed target workspace-head closures.
 8. Event vocabulary remains factual and does not encode project health.
+9. Shallow or incomplete ancestry produces `movement: "unknown"`.
+10. Inline ID lists are complete or the enclosing outcome reports an explicit
+    limit failure.
+11. Corrupted ledger state suppresses dependent movement and loss assertions;
+    it never causes source-repository mutation.
 
 ## Versioning and Compatibility
 
@@ -521,16 +546,14 @@ V1 does not:
 - prescribe UI grouping or prose summaries;
 - define alert thresholds;
 - define project-specific task lifecycle semantics;
-- garbage-collect history.
+- garbage-collect history;
+- provide custody-chain or forensic audit guarantees.
 
 ## Open Policy Questions
 
-1. Should large history/reachability events contain all object IDs, paged
-   references, or content-addressed side records?
-2. What retention boundary permits reliable `history_became_unreachable`
-   comparison over long intervals?
-3. Should optional reflog/jj-operation events use this vocabulary or a separate
+1. Should optional reflog/jj-operation events use this vocabulary or a separate
    ephemeral delta channel?
-4. How should shallow Git history report ancestry boundaries in v2?
-5. Which repository identity continuity failures require explicit operator
+2. Which repository identity continuity failures require explicit operator
    reconciliation?
+3. What evidence threshold justifies adding paging or content-addressed side
+   records after v1?

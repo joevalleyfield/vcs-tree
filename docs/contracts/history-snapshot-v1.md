@@ -49,9 +49,9 @@ The ledger MUST be content-addressed by repository key, native object kind, and
 native object ID. Re-observing an object MUST NOT duplicate its immutable
 record.
 
-An object that later becomes unreachable MUST remain in the ledger according
-to the configured retention policy. Ref deletion MUST NOT immediately erase
-previously observed objects.
+V1 retains observed objects indefinitely. An object that later becomes
+unreachable MUST remain in the ledger. Ref deletion MUST NOT erase previously
+observed objects.
 
 The ledger contains:
 
@@ -59,6 +59,51 @@ The ledger contains:
 - first-observation facts;
 - optional parent-relative file-change details;
 - ledger generations or another monotonic completeness boundary.
+
+### State placement and writer policy
+
+The history ledger, repository-key registry, snapshot index, generation
+metadata, integrity metadata, and writer coordination are authoritative
+application state. They MUST NOT be stored under an evictable cache directory
+such as `XDG_CACHE_HOME` or `~/.cache`.
+
+V1 defaults to:
+
+- `placement: "machine_local"`;
+- `writer_policy: "single_writer"`;
+- one locally enrolled opaque `writer_id`;
+- repository keys scoped to that local ledger;
+- indefinite retention of observed objects.
+
+The repository tree may live on a cloud-synchronized drive. That does not make
+machine-local vcs-tree state, configuration, or repository keys synchronized.
+A second machine observing the same tree has a different identity universe
+unless a future explicit sharing policy says otherwise.
+
+Only the enrolled writer may mutate a v1 history store. Other processes or
+machines MAY read it. If a state root is configured on shared or
+cloud-synchronized storage, a writer with a different `writer_id` MUST refuse
+to write until the operator explicitly changes the writer policy.
+
+Creating a v1 history store enrolls the current machine as its writer. V1 does
+not provide a second-writer enrollment operation.
+
+Operator-facing initialization and status surfaces MUST report:
+
+- the resolved authoritative state root;
+- whether it is machine-local or shared;
+- the active writer policy and writer identity;
+- the resolved configuration location;
+- any disposable cache location.
+
+They MUST warn that machine-local state and configuration do not follow a
+cloud-synchronized repository tree.
+
+Configuration files MAY live under a machine-local configuration directory
+such as `XDG_CONFIG_HOME` or `~/.config`. They contain preferences, not the
+authoritative ledger. Disposable indexes and renderer results MAY live under
+the cache directory if deleting them cannot lose repository keys, snapshots,
+first-observation facts, or retained history.
 
 ### Snapshot manifest
 
@@ -88,7 +133,12 @@ Every snapshot has this top-level shape:
   },
   "history_store": {
     "store_id": "local-ledger-01",
-    "generation": 42
+    "generation": 42,
+    "placement": "machine_local",
+    "writer_policy": "single_writer",
+    "writer_id": "writer-machine-a",
+    "retention": "indefinite",
+    "integrity": "ok"
   },
   "scan": {
     "root": "/workspace",
@@ -108,11 +158,16 @@ Required envelope fields:
 - `snapshot_id`: unique within the history store;
 - `captured_at`: RFC 3339 timestamp normalized to UTC;
 - `collector`: collector identity and version;
-- `history_store`: store identity and generation;
+- `history_store`: store identity, generation, placement, writer policy,
+  retention, and integrity state;
 - `scan`: scan scope and outcome;
 - `repositories`: deterministically ordered repository observations.
 
 `scan.root` is observation provenance, not portable repository identity.
+
+For v1, `placement` is `machine_local`, `writer_policy` is `single_writer`, and
+`retention` is `indefinite`. `integrity` is `ok`, `degraded`, or `error` and
+describes the history store state at capture time.
 
 ## Collection Outcome
 
@@ -143,6 +198,36 @@ Errors MUST be factual and stage-scoped. Implementations MAY redact command
 stderr, but MUST retain `kind` and `stage`.
 
 An empty complete component and an errored component are different states.
+
+## History Completeness Boundary
+
+Every repository observation MUST describe the ancestry boundary:
+
+```json
+{
+  "state": "shallow",
+  "boundary_objects": [
+    {
+      "algorithm": "sha1",
+      "value": "0123456789abcdef0123456789abcdef01234567"
+    }
+  ]
+}
+```
+
+`state` is one of:
+
+- `complete`: parent closure is complete through the native root;
+- `shallow`: collection reached an explicit shallow boundary;
+- `partial`: collection stopped because of a collection failure or limit;
+- `unknown`: the adapter cannot establish ancestry completeness.
+
+`boundary_objects` identifies commits whose missing parent closure is
+intentional or known. It is empty for `complete`.
+
+Shallow, partial, or unknown history MUST remain explicit. An ancestry query
+crossing such a boundary returns `unknown`; it MUST NOT guess fast-forward,
+rewind, or divergence.
 
 ## Repository Observation
 
@@ -181,6 +266,10 @@ Each repository observation has:
       "errors": []
     }
   },
+  "history_boundary": {
+    "state": "complete",
+    "boundary_objects": []
+  },
   "workspaces": [],
   "refs": [],
   "roots": []
@@ -196,6 +285,10 @@ observer can establish continuity.
 V1 does not claim that repository keys are portable between machines or that
 two clones share one identity. Paths and remote URLs MUST NOT be treated as
 globally unique repository IDs.
+
+The local repository-key registry is authoritative only within its history
+store. If that registry is lost or corrupted beyond recovery, a reconstructed
+store MAY assign a new key. V1 does not claim continuity across that loss.
 
 ### Mode
 
@@ -217,6 +310,32 @@ repository backed by Git still uses `backend: "git"` and `mode: "jj"`.
 
 `native_hint` MAY contain a local, redacted continuity hint. It MUST NOT be
 interpreted as portable identity.
+
+## Corruption and Recovery
+
+The ledger is observational state, not a custody chain, tamper-evident log, or
+authority over source repositories.
+
+Implementations MUST isolate detected state corruption:
+
+- mark the affected history store, repository, generation, or component as
+  `degraded` or `error`;
+- suppress deletion, reachability-loss, and ancestry assertions that depend on
+  corrupted data;
+- continue collecting unaffected repositories when safe;
+- never rewrite, delete, repair, reset, fetch, or otherwise mutate a source
+  repository in response to ledger corruption;
+- never treat corrupted control state as instructions.
+
+Recovery MAY rebuild visible history from source repositories into a new
+generation or store. Such recovery can lose first-observation facts and
+formerly observed unreachable history. That loss MUST be reported plainly; it
+does not imply loss or corruption of source repository history.
+
+Writes to authoritative state SHOULD be atomic at the smallest practical
+repository/generation boundary and SHOULD include integrity checks sufficient
+to detect truncated or malformed records. V1 makes no custody, provenance
+chain, or forensic completeness guarantee.
 
 ## Workspace Record
 
@@ -542,7 +661,7 @@ V1 does not require a canonical JSON byte encoding or content-derived
 1. Every root target is present in the referenced ledger generation unless
    history collection is partial or errored.
 2. Every parent edge refers to an object in the same repository ledger or an
-   explicit shallow-boundary marker introduced by a future version.
+   explicit v1 history-boundary object.
 3. Commit graph identity uses commit/object ID, never jj change ID.
 4. Repository/store identity and workspace identity are different keys.
 5. Null root, unborn state, empty history, and read errors are distinguishable.
@@ -550,6 +669,10 @@ V1 does not require a canonical JSON byte encoding or content-derived
 7. Snapshots contain facts observed at capture time, not progress judgments.
 8. Previously observed unreachable objects are not deleted merely because a
    later snapshot omits their roots.
+9. Authoritative control state never depends on an evictable cache.
+10. Only the enrolled writer mutates a single-writer history store.
+11. State corruption never authorizes source-repository mutation or unsupported
+    movement assertions.
 
 ## Versioning and Compatibility
 
@@ -571,20 +694,21 @@ V1 does not:
 - claim that author/committer timestamps are observation timestamps;
 - mirror every object in a Git or jj store;
 - treat reflogs or jj operation history as default roots;
-- define permanent retention duration;
 - define cross-machine clone equivalence;
+- coordinate multiple writer machines;
+- provide custody-chain, tamper-evidence, or forensic audit guarantees;
 - define package APIs, SQL tables, JSON Schema, or cache migration;
 - interpret generic file paths as project task lifecycle.
 
 ## Open Policy Questions
 
-1. How is `repository_key` continuity preserved portably after moves?
-2. What retention policy applies to formerly observed unreachable objects?
-3. Should optional reflog and jj operation-history observations share the main
+1. Should optional reflog and jj operation-history observations share the main
    ledger or use a separate ephemeral channel?
-4. Should export bundles materialize full root closure or only objects missing
+2. Should export bundles materialize full root closure or only objects missing
    from a named receiver generation?
-5. Which author/email redaction policy applies outside a local machine?
+3. Which author/email redaction policy applies outside a local machine?
+4. What explicit migration promotes a machine-local single-writer store to a
+   shared or multi-writer policy?
 
 These questions MUST remain policy/configuration decisions. Adapters MUST NOT
 choose incompatible answers implicitly.

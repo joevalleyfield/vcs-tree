@@ -30,6 +30,19 @@ type markers. The module form is equivalent:
 uv run python -m vcs_tree ~/Documents
 ```
 
+## Local State Warning
+
+The current command writes only a disposable renderer cache under
+`$XDG_CACHE_HOME/vcs-tree` or `~/.cache/vcs-tree`. That cache is machine-local;
+it does not follow repositories stored on a cloud-synchronized drive and may
+be deleted without affecting repository history.
+
+The planned history ledger, repository-key registry, and snapshot index are
+different: they are authoritative vcs-tree state and will not be placed in an
+evictable cache. V1 will default to one machine-local writer and will report
+and warn about the resolved state, configuration, and cache locations. Shared
+or multi-writer state is not enabled until that policy is explicitly changed.
+
 ## Development
 
 The project supports Python 3.9 and newer. uv creates the local environment

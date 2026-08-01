@@ -3,7 +3,7 @@ FKA:
 AKA: vcs movement feed; refs and delta descriptions; package extraction
 Legacy index:
 
-keywords: tooling, decomp, inception, contract, snapshots, refs, deltas
+keywords: tooling, decomp, active, contract, snapshots, refs, deltas
 
 Parent:
 Depends on: `260728-bootstrap-vcs-tree-incubator`
@@ -46,18 +46,21 @@ future recurring workspace pulses can compare and summarize.
 - Fact: colocation is a first-class repository mode.
 - Fact: the movement feed must notice work outside the current checkout,
   including a fetch that introduces an unrelated line of history.
+- Fact: the repository tree may be cloud-synchronized while vcs-tree state and
+  configuration remain machine-local.
+- Fact: v1 is observational state, not a custody chain or audit system.
 - Assumption: a versioned JSON snapshot is the first durable interchange
   surface.
 - Assumption: history records should be content-addressed and deduplicated,
   while each snapshot records the ref topology that made history observable.
 - Assumption: the default observed-history boundary includes commits reachable
   from local refs, remote-tracking refs, tags, and jj visible heads.
-- Unknown: which refs belong in the default collection and how remote/tracking
-  refs should be normalized across Git and jj.
+- Assumption: v1 assigns repository keys within one local ledger and permits
+  one enrolled writer machine.
+- Assumption: v1 retains observed history indefinitely.
+- Assumption: v1 stores event ID lists inline without silent truncation.
 - Unknown: whether Git reflogs and dangling objects belong in an optional deep
   mode.
-- Unknown: how long unreachable history remains locally retained.
-- Unknown: how jj change IDs and commit IDs participate in stable identity.
 - Unknown: whether task movement begins as generic path evidence or
   project-specific adapters.
 
@@ -83,8 +86,10 @@ future recurring workspace pulses can compare and summarize.
   `260729-explore-history-surfaces`.
 - Draft snapshot and delta contracts completed under
   `260729-draft-history-contracts`.
+- Initial identity, state, writer, retention, resilience, incomplete-history,
+  and payload defaults settled under `260801-settle-v1-policy-defaults`.
 - Snapshot, ref, and delta transformations remain to be decomposed after their
-  contract policy questions are reviewed.
+  contract implementation boundaries are planned.
 
 ## Evidence
 - The package follow-on closed with a locked Python 3.9+ project, 26 passing
@@ -96,6 +101,9 @@ future recurring workspace pulses can compare and summarize.
 - `docs/contracts/history-snapshot-v1.md` and
   `docs/contracts/history-delta-v1.md` provide versioned draft contracts
   grounded in that evidence.
+- The v1 policy pass distinguishes authoritative application state from the
+  existing disposable renderer cache and makes corruption non-custodial and
+  failure-isolated.
 - Compatibility checks against the baseline tree output.
 - Focused fixtures for Git, jj, colocation, null-root, dirty, and error states.
 
@@ -117,15 +125,25 @@ future recurring workspace pulses can compare and summarize.
 - Require complete before/after components for deletion and movement events;
   partial collection produces explicit indeterminacy.
 - Define off-current history against every observed target workspace head.
+- Assign repository keys within one machine-local ledger and default to one
+  enrolled writer machine.
+- Keep authoritative ledger/key/snapshot state outside evictable cache and
+  report all resolved state, configuration, and cache locations.
+- Retain observed history indefinitely; corruption may lose observation
+  history but never authorizes repository mutation or custody assertions.
+- Mark shallow/incomplete ancestry explicitly and return unknown movement.
+- Keep v1 ID lists inline and report explicit limit failure instead of
+  truncating them.
 
 ## Open Fronts
 - Snapshot persistence and cache migration.
-- Portable repository identity and unreachable-history retention policy.
+- State-root selection, single-writer enforcement, integrity isolation, and
+  operator location warnings.
 - Optional Git reflog/dangling and jj operation-history depth.
 - Export-bundle framing for ledger-dependent snapshots.
-- Large event paging and shallow-history boundaries.
+- Future shared/multi-writer migration and cross-machine identity.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Review contract policy questions, then decompose ledger, snapshot collector,
-  and delta implementation.
+- Decompose ledger/model, Git adapter, jj adapter, snapshot collector, and
+  delta implementation into ready tasks.
