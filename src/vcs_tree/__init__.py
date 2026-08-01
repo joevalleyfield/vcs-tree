@@ -37,6 +37,7 @@ from .models import (
     dumps,
     loads,
 )
+from .snapshot import SnapshotCollector, SnapshotResult
 
 __all__ = [
     "Backend", "Certainty", "CollectionError", "CollectionOutcome", "CollectionState",
@@ -47,4 +48,5 @@ __all__ = [
     "WriterMismatchError", "resolve_paths",
     "GitAdapter", "GitObservation",
     "JjAdapter", "JjObservation",
+    "SnapshotCollector", "SnapshotResult",
 ]

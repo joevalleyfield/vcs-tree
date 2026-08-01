@@ -305,7 +305,12 @@ class HistoryLedger:
         return next_generation
 
     def record_snapshot(
-        self, snapshot_id: str, generation: int, *, writer_id: str | None = None
+        self,
+        snapshot_id: str,
+        generation: int,
+        *,
+        manifest: dict[str, Any] | None = None,
+        writer_id: str | None = None,
     ) -> None:
         self._require_writer(writer_id)
         self._require_healthy(self._SNAPSHOTS)
@@ -314,8 +319,13 @@ class HistoryLedger:
         snapshots = self._load(self._SNAPSHOTS)
         if not isinstance(snapshots, list):
             raise LedgerCorruptError("invalid snapshot index")
+        if generation > self.generation:
+            raise ContractError("snapshot generation cannot exceed ledger generation")
         if not any(item.get("snapshot_id") == snapshot_id for item in snapshots):
-            snapshots.append({"snapshot_id": snapshot_id, "generation": generation})
+            entry = {"snapshot_id": snapshot_id, "generation": generation}
+            if manifest is not None:
+                entry["manifest"] = json.loads(json.dumps(manifest, sort_keys=True))
+            snapshots.append(entry)
             _atomic_write(self.root / self._SNAPSHOTS, snapshots)
 
     def read_objects(self) -> dict[str, dict[str, Any]]:

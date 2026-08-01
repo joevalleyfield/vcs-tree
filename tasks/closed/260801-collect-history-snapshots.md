@@ -3,7 +3,7 @@ FKA:
 AKA: snapshot orchestration; topology manifest writer
 Legacy index:
 
-keywords: tooling, ready, snapshots, orchestration, persistence, colocation
+keywords: tooling, closed, snapshots, orchestration, persistence, colocation
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-build-local-history-ledger`;
@@ -64,6 +64,15 @@ observations, enforce generation invariants, or produce comparable manifests.
   this task file; update `tasks/WORKBOARD.md` only for lifecycle changes.
 - Do not calculate deltas, define export bundles, add paging, or redirect the
   live resource command.
+- Implemented `src/vcs_tree/snapshot.py` with `SnapshotCollector` and
+  `SnapshotResult` orchestration over the Git/jj adapters and local ledger.
+- Assigned stable local repository keys, merged colocated native surfaces,
+  preserved roots/workspaces/refs/outcomes, and deduplicated immutable history
+  objects before generation commit.
+- Extended the ledger snapshot index to retain each published manifest
+  alongside its committed generation.
+- Published v1 envelopes only after object and generation writes; delta
+  calculation, export, paging, and CLI remain outside this task.
 
 ## Evidence
 - Integration tests cover Git-only, jj/colocated, linked-workspace, remote-only
@@ -73,13 +82,27 @@ observations, enforce generation invariants, or produce comparable manifests.
   deduplication, committed generation references, and atomic publication.
 - Tests prove limit failures are explicit and untruncated.
 - The full suite and Ruff checks pass at 100% coverage.
+- Added `tests/test_snapshot.py` covering Git-only, jj-only, colocated merge,
+  repeated snapshots, stable keys, object deduplication, partial outcomes,
+  shallow/unknown boundaries, deterministic roots, and manifest indexing.
+- `uv run ruff check src/vcs_tree tests` passed.
+- `uv run pytest -q` passed: 108 tests, 100.00% total coverage.
+- End-to-end read-only collection of this repository into a temporary ledger
+  produced generation 1 and a colocated snapshot without changing source VCS
+  state.
 
 ## Decisions
 - Publish only snapshots backed by committed ledger generations.
+- Use the resolved repository path as the v1 local continuity key; no portable
+  clone identity is inferred.
+- In colocated mode, jj owns workspace observations while Git owns the selected
+  user-ref surface; native histories are retained together in one record.
 
 ## Open Fronts
 - Deltas, exports, CLI exposure, and cache migration.
+- Limit policy remains explicit in later snapshot/CLI surfaces; no IDs are
+  silently truncated here.
 
 ## Next Actions
-- Implement after the ledger and both adapters close, then hand stable snapshot
-  fixtures to delta and CLI integration work.
+- Claim `260801-calculate-history-deltas`; the collector now provides durable,
+  generation-backed snapshot fixtures for comparison.

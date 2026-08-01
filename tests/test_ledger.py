@@ -102,6 +102,8 @@ def test_input_validation_and_generation_snapshot_rules(tmp_path):
         ledger.record_snapshot("", 0, writer_id="writer-a")
     with pytest.raises(ContractError):
         ledger.record_snapshot("snapshot", -1, writer_id="writer-a")
+    with pytest.raises(ContractError):
+        ledger.record_snapshot("snapshot", 1, writer_id="writer-a")
 
 
 def test_corrupt_object_component_isolated_from_repository_registry(tmp_path):
