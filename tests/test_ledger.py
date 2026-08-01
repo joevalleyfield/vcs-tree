@@ -68,6 +68,7 @@ def test_objects_are_immutable_deduplicated_and_retained(tmp_path):
     reopened = HistoryLedger.open(tmp_path / "state")
     assert reopened.generation == 2
     assert len(reopened.read_objects()) == 2
+    assert reopened.read_snapshots()[0]["snapshot_id"] == "snapshot-a"
 
 
 def test_mutations_require_enrolled_writer(tmp_path):
@@ -171,6 +172,8 @@ def test_corrupt_shapes_are_rejected_per_component(tmp_path):
         reopened.record_snapshot("snapshot", 0, writer_id="writer-a")
     with pytest.raises(LedgerCorruptError):
         reopened.read_objects()
+    with pytest.raises(LedgerCorruptError):
+        reopened.read_snapshots()
 
 
 def test_open_rejects_invalid_manifest_shapes(tmp_path):

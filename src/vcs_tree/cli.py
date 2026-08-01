@@ -38,6 +38,7 @@ def _build_history_parser() -> argparse.ArgumentParser:
         ("inspect", "Inspect history store locations and status"),
         ("snapshot", "Collect and persist a repository snapshot"),
         ("delta", "Compare two persisted snapshots"),
+        ("list", "List retained snapshots"),
     ):
         sub = history_sub.add_parser(name, help=help_text)
         sub.add_argument("--state-root", help="Authoritative state directory")
@@ -99,13 +100,56 @@ def _history_main(args: argparse.Namespace) -> int:
             }
         )
         return 0
+    if args.history_command == "list":
+        report = paths.report()
+        if not (paths.state_root / HistoryLedger._MANIFEST).exists():
+            _print_json({"status": "uninitialized", **report, "snapshots": []})
+            return 2
+        try:
+            ledger = HistoryLedger.open(state_root)
+            entries = ledger.read_snapshots()
+        except LedgerError as exc:
+            _print_json({"status": "degraded", **report, "error": str(exc), "snapshots": []})
+            return 2
+        snapshots = []
+        for entry in entries:
+            manifest = entry.get("manifest") if isinstance(entry.get("manifest"), dict) else {}
+            scan = manifest.get("scan") if isinstance(manifest.get("scan"), dict) else {}
+            outcome = scan.get("outcome") if isinstance(scan.get("outcome"), dict) else {}
+            store = (
+                manifest.get("history_store")
+                if isinstance(manifest.get("history_store"), dict)
+                else {}
+            )
+            snapshots.append(
+                {
+                    "snapshot_id": entry.get("snapshot_id"),
+                    "top_path": scan.get("root"),
+                    "captured_at": manifest.get("captured_at"),
+                    "generation": entry.get("generation"),
+                    "outcome": outcome.get("state"),
+                    "store_id": store.get("store_id", ledger.store_id),
+                }
+            )
+        snapshots.sort(
+            key=lambda item: (
+                item["generation"] or -1,
+                item["captured_at"] or "",
+                item["snapshot_id"] or "",
+            )
+        )
+        _print_json({"status": "ok", **report, "store_id": ledger.store_id, "snapshots": snapshots})
+        return 0
     try:
         ledger = HistoryLedger.open(state_root)
         if args.history_command == "snapshot":
-            result = SnapshotCollector(ledger).collect(Path(args.path))
+            result = SnapshotCollector(
+                ledger,
+                progress=lambda message: print(f"[vcs-tree] {message}", file=sys.stderr),
+            ).collect(Path(args.path))
             _print_json(result.envelope.to_dict())
             return 0 if result.envelope.scan.get("outcome", {}).get("state") == "complete" else 2
-        snapshots = ledger._load(ledger._SNAPSHOTS)
+        snapshots = ledger.read_snapshots()
         entries = {item.get("snapshot_id"): item for item in snapshots if item.get("manifest")}
         before = entries.get(args.from_snapshot)
         after = entries.get(args.to_snapshot)

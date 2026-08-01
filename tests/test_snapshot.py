@@ -113,6 +113,25 @@ def test_git_snapshot_publishes_after_generation(tmp_path):
     assert snapshots[0]["manifest"]["snapshot_id"] == "snapshot-a"
 
 
+def test_snapshot_progress_reports_phases(tmp_path):
+    (tmp_path / ".git").mkdir()
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    messages = []
+    collector = SnapshotCollector(
+        ledger,
+        git_factory=lambda path: type(
+            "Factory", (), {"collect": lambda self: git_observation(path)}
+        )(),
+        snapshot_id_factory=lambda: "progress",
+        progress=messages.append,
+    )
+    collector.collect(tmp_path)
+    assert any(message.startswith("discovering") for message in messages)
+    assert any(message.startswith("collecting") for message in messages)
+    assert any(message.startswith("persisting") for message in messages)
+    assert any("completed snapshot progress (complete)" in message for message in messages)
+
+
 def test_colocated_snapshot_merges_native_surfaces_and_deduplicates(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / ".jj").mkdir()

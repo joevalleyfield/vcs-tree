@@ -335,6 +335,13 @@ class HistoryLedger:
             raise LedgerCorruptError("invalid object ledger")
         return value
 
+    def read_snapshots(self) -> list[dict[str, Any]]:
+        """Read the authoritative retained-snapshot index without repairing it."""
+        value = self._load(self._SNAPSHOTS)
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            raise LedgerCorruptError("invalid snapshot index")
+        return value
+
 
 __all__ = [
     "HistoryLedger",

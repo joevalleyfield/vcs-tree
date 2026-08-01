@@ -76,7 +76,7 @@ def test_history_snapshot_and_delta_commands(tmp_path, monkeypatch, capsys):
     second.envelope.snapshot_id = "two"
     collector = Mock()
     collector.collect.side_effect = [first, second]
-    monkeypatch.setattr(cli, "SnapshotCollector", lambda ledger: collector)
+    monkeypatch.setattr(cli, "SnapshotCollector", lambda ledger, **kwargs: collector)
     assert cli.main(["history", "snapshot", "--state-root", str(state), str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out)["snapshot_id"] == "one"
     assert cli.main(["history", "snapshot", "--state-root", str(state), str(tmp_path)]) == 0
@@ -94,6 +94,52 @@ def test_history_delta_missing_snapshot_and_degraded_state(tmp_path, capsys):
     (state / "manifest.json").write_text("not-json")
     assert cli.main(["history", "inspect", "--state-root", str(state)]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "degraded"
+
+
+def test_history_list_reports_deterministic_snapshot_index(tmp_path, capsys):
+    state = tmp_path / "state"
+    ledger = HistoryLedger.create(state, writer_id="writer")
+    base = {
+        "schema": "vcs-tree.history-snapshot",
+        "history_store": {"store_id": ledger.store_id},
+        "scan": {"root": "/top", "outcome": {"state": "complete"}},
+    }
+    ledger.commit_generation(writer_id="writer")
+    ledger.commit_generation(writer_id="writer")
+    ledger.record_snapshot(
+        "later", 2, manifest={**base, "captured_at": "2026-08-02T00:00:00Z"}, writer_id="writer"
+    )
+    ledger.record_snapshot(
+        "earlier", 1, manifest={**base, "captured_at": "2026-08-01T00:00:00Z"}, writer_id="writer"
+    )
+    ledger.record_snapshot("bare", 0, writer_id="writer")
+    assert cli.main(["history", "list", "--state-root", str(state)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["store_id"] == ledger.store_id
+    assert [item["snapshot_id"] for item in result["snapshots"]] == ["bare", "earlier", "later"]
+    assert result["snapshots"][1]["top_path"] == "/top"
+
+
+def test_history_list_reports_empty_initialized_index(tmp_path, capsys):
+    state = tmp_path / "state"
+    ledger = HistoryLedger.create(state, writer_id="writer")
+    assert cli.main(["history", "list", "--state-root", str(state)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "ok"
+    assert result["store_id"] == ledger.store_id
+    assert result["snapshots"] == []
+
+
+def test_history_list_explicitly_reports_uninitialized_and_corrupt_index(tmp_path, capsys):
+    assert cli.main(["history", "list", "--state-root", str(tmp_path / "missing")]) == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "uninitialized"
+    state = tmp_path / "state"
+    HistoryLedger.create(state, writer_id="writer")
+    (state / "snapshots.json").write_text("broken", encoding="utf-8")
+    assert cli.main(["history", "list", "--state-root", str(state)]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "degraded"
+    assert not (state / "snapshots.json").read_text(encoding="utf-8").startswith("{")
 
 
 def test_history_delta_renders_persisted_comparison(tmp_path, monkeypatch, capsys):

@@ -112,19 +112,24 @@ class SnapshotCollector:
         jj_factory: AdapterFactory = JjAdapter,
         clock: Callable[[], str] = _now,
         snapshot_id_factory: Callable[[], str] | None = None,
+        progress: Callable[[str], None] | None = None,
     ):
         self.ledger = ledger
         self.git_factory = git_factory
         self.jj_factory = jj_factory
         self.clock = clock
         self.snapshot_id_factory = snapshot_id_factory or (lambda: f"snapshot-{uuid4().hex}")
+        self.progress = progress or (lambda _message: None)
 
     def collect(self, path: str | Path) -> SnapshotResult:
         root = Path(path).resolve()
+        self.progress(f"discovering repositories under {root}")
         roots, discovery_errors = _discover(root)
+        self.progress(f"discovered {len(roots)} repository root(s)")
         repositories = []
         objects: list[dict[str, Any]] = []
         for repository_root in roots:
+            self.progress(f"collecting {repository_root}")
             git_observation = (
                 self.git_factory(repository_root).collect()
                 if (repository_root / ".git").is_dir()
@@ -142,6 +147,7 @@ class SnapshotCollector:
                 _as_objects(repository["repository_key"], repository.pop("_history_objects"))
             )
             repositories.append(repository)
+        self.progress("persisting history objects and generation")
         self.ledger.append_objects(objects, writer_id=self.ledger.writer_id)
         generation = self.ledger.commit_generation(writer_id=self.ledger.writer_id)
         store = HistoryStore(
@@ -168,6 +174,7 @@ class SnapshotCollector:
             manifest=envelope.to_dict(),
             writer_id=self.ledger.writer_id,
         )
+        self.progress(f"completed snapshot {envelope.snapshot_id} ({scan_outcome.state.value})")
         return SnapshotResult(envelope, generation)
 
     def _repository(

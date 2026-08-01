@@ -3,7 +3,7 @@ FKA:
 AKA: snapshot listing; history scan progress
 Legacy index:
 
-keywords: tooling, ready, cli, observability, progress, snapshots, index
+keywords: tooling, closed, cli, observability, progress, snapshots, index
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-integrate-history-cli`; `260803-restore-nested-repository-reporting`
@@ -42,9 +42,13 @@ listing of retained snapshots.
 
 ## Completion Evidence
 
-- Capture a long-running/nested scan showing stderr phase updates and clean JSON
-  stdout.
-- Capture snapshot listing output with top path, timestamp, generation, and
-  outcome for repeated snapshots.
-- Test missing/corrupt/empty index behavior and preserve the 100% coverage gate.
-- `uv run ruff check src/vcs_tree tests` and `uv run pytest -q` pass.
+- `uv run vcs-tree history snapshot` emits discovery, collection, persistence,
+  and completion updates on stderr while stdout remains valid JSON; an
+  installed-CLI smoke captured five progress lines.
+- `uv run vcs-tree history list` reads the authoritative checksummed index and
+  reports deterministic snapshot ID, top path, timestamp, generation, outcome,
+  and store identity fields, including repeated and manifest-light entries.
+- Focused tests cover initialized-empty, uninitialized, corrupt, and malformed
+  index outcomes without rewriting the damaged file.
+- `uv run ruff check src/vcs_tree tests` passes; `uv run pytest -q` passes 140
+  tests with 100% statement and branch coverage.

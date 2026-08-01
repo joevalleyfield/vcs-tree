@@ -122,8 +122,15 @@ The additive `history` commands keep the existing scanner invocation intact:
 vcs-tree history init --state-root PATH
 vcs-tree history inspect --state-root PATH
 vcs-tree history snapshot --state-root PATH REPOSITORY
+vcs-tree history list --state-root PATH
 vcs-tree history delta --state-root PATH --from SNAPSHOT --to SNAPSHOT
 ```
+
+Snapshot collection keeps JSON on stdout and emits concise discovery,
+collection, persistence, and completion status on stderr. `history list` reads
+the authoritative retained-snapshot index and reports deterministic IDs, paths,
+timestamps, generations, outcomes, and store identity; it does not inspect or
+repair disposable renderer cache files.
 
 Authoritative history state, repository keys, and writer enrollment are
 machine-local. The command reports the resolved state, configuration, and

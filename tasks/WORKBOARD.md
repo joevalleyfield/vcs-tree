@@ -29,7 +29,7 @@
   validate feature behavior and failure boundaries.
 - `260803-test-nested-repository-e2e` — closed; nested CLI workflows,
   aliases, malformed children, and compatibility behavior are covered.
-- `260804-history-observability-and-index` — ready; add stderr progress for
+- `260804-history-observability-and-index` — closed; add stderr progress for
   long scans and a supported retained-snapshot listing.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
@@ -37,6 +37,11 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260804-history-observability-and-index` — added stderr phase progress,
+  authoritative deterministic snapshot listing, explicit empty/uninitialized/
+  corrupt index outcomes, operator documentation, and 140-test/100%-coverage
+  validation.
 
 - `260803-test-nested-repository-e2e` — covered nested parent/colocated/sibling
   CLI snapshots and deltas, aliases, default rendering, malformed-child
