@@ -22,8 +22,8 @@
   are covered.
 - `260803-define-nested-repository-semantics` — closed; recursive discovery,
   ownership, deduplication, and boundary rules are documented for coding.
-- `260803-restore-nested-repository-reporting` — blocked by nested semantics;
-  integrate tree discovery into history snapshots and CLI reporting.
+- `260803-restore-nested-repository-reporting` — closed; recursive history
+  discovery and nested/colocated snapshot reporting are implemented.
 - `260803-test-nested-repository-features` — blocked by nested reporting;
   validate feature behavior and failure boundaries.
 - `260803-test-nested-repository-e2e` — blocked by nested feature tests;
@@ -34,6 +34,11 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-restore-nested-repository-reporting` — added canonical recursive
+  history discovery, parent/child ownership, colocated deduplication, merged
+  workspace/worktree relationships, and nested CLI smoke coverage; 130 tests
+  pass with 100% coverage.
 
 - `260803-define-nested-repository-semantics` — documented canonical-root
   ownership, colocated deduplication, parent/child reporting, symlink and

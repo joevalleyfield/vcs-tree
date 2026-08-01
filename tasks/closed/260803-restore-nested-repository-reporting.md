@@ -3,12 +3,12 @@ FKA:
 AKA: recursive history collection; nested repository integration
 Legacy index:
 
-keywords: tooling, blocked, nested, implementation, snapshots, cli, ownership
+keywords: tooling, closed, nested, implementation, snapshots, cli, ownership
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260803-define-nested-repository-semantics`
 Blocks: `260803-test-nested-repository-features`
-Blocked by: `260803-define-nested-repository-semantics`
+Blocked by:
 Related: `260801-integrate-history-cli`; `260801-collect-history-snapshots`
 
 # Restore Nested Repository Reporting
@@ -42,9 +42,21 @@ Git/jj repositories according to the approved discovery semantics.
 
 ## Completion Evidence
 
-- Implementation references the approved nested-discovery note and records
-  ownership/deduplication decisions.
-- Deterministic nested tree output is demonstrated with parent/child,
-  colocated, and alias fixtures.
-- `uv run ruff check src/vcs_tree tests` and the 100% coverage suite pass.
-- Existing single-root and default scanner compatibility evidence remains green.
+- Added canonical recursive discovery in `snapshot.py`, exported as
+  `discover_repository_roots`, with metadata pruning, no symlink traversal,
+  explicit discovery outcomes, and deterministic canonical ordering.
+- Extended snapshot collection from one root to a tree of owned roots while
+  preserving the single-root path. Parent/child roots receive distinct local
+  keys; Git+jj markers at one root produce one colocated record.
+- Added relative repository paths and merged colocated Git worktree/jj
+  workspace relationships by canonical workspace path.
+- Added nested discovery and publication tests covering canonical aliases,
+  colocated ownership, non-directory/error outcomes, deterministic ordering,
+  stable keys, and scan completeness.
+- Real CLI smoke over a temporary Git parent plus colocated jj child reported
+  `[('.', 'git', 'repo-0001'), ('child', 'colocated', 'repo-0002')]` with a
+  complete scan outcome.
+- `uv run ruff check src/vcs_tree tests` passes.
+- `uv run pytest -q`: 130 tests, 100.00% coverage.
+- Existing single-root, default scanner, and live resource compatibility
+  surfaces remain unchanged.

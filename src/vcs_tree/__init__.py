@@ -38,7 +38,7 @@ from .models import (
     dumps,
     loads,
 )
-from .snapshot import SnapshotCollector, SnapshotResult
+from .snapshot import SnapshotCollector, SnapshotResult, discover_repository_roots
 
 __all__ = [
     "Backend",
@@ -74,6 +74,7 @@ __all__ = [
     "JjObservation",
     "SnapshotCollector",
     "SnapshotResult",
+    "discover_repository_roots",
     "DeltaCalculator",
     "HistoryDeltaCalculator",
 ]
