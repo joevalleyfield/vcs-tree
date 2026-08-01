@@ -31,6 +31,8 @@
   aliases, malformed children, and compatibility behavior are covered.
 - `260804-history-observability-and-index` — closed; add stderr progress for
   long scans and a supported retained-snapshot listing.
+- `260805-delta-presentation-surfaces` — ready; formalize scan-relative,
+  signal-first delta summaries with explicit audit and JSON views.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
