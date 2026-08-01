@@ -201,8 +201,9 @@ class JjAdapter:
 
     def _workspaces(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (
-            "name++\\x00++workspace_root++\\x00++commit_id++\\x00++change_id++"
-            "\\x00++working_copy_state++\\x00++working_copy_summary++\\n"
+            'self.name() ++ "\\x00" ++ self.root() ++ "\\x00" ++ self.target().commit_id() ++ '
+            '"\\x00" ++ self.target().change_id() ++ "\\x00" ++ "unknown" ++ "\\x00" ++ '
+            'self.target().description().first_line() ++ "\\n"'
         )
         output, error = self._call(
             ("workspace", "list", "--ignore-working-copy", "-T", template),
@@ -211,9 +212,9 @@ class JjAdapter:
         if error:
             return (), _outcome(CollectionState.ERROR, error)
         try:
-            return tuple(
-                _parse_workspace(line) for line in output.splitlines() if line
-            ), _outcome(CollectionState.COMPLETE)
+            return tuple(_parse_workspace(line) for line in output.splitlines() if line), _outcome(
+                CollectionState.COMPLETE
+            )
         except ValueError as exc:
             return (), _outcome(
                 CollectionState.PARTIAL, _error("parse_error", "jj.workspaces", str(exc))
@@ -221,8 +222,11 @@ class JjAdapter:
 
     def _bookmarks(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (
-            "name++\\x00++remote++\\x00++conflict++\\x00++normal_target++"
-            "\\x00++removed_targets++\\x00++added_targets++\\x00++tracking++\\n"
+            'self.name() ++ "\\x00" ++ self.remote() ++ "\\x00" ++ self.conflict() ++ "\\x00" ++ '
+            'self.normal_target().commit_id() ++ "\\x00" ++ '
+            'self.removed_targets().map(|c| c.commit_id()).join(",") ++ "\\x00" ++ '
+            'self.added_targets().map(|c| c.commit_id()).join(",") ++ "\\x00" ++ '
+            'self.tracked() ++ "\\n"'
         )
         output, error = self._call(
             ("bookmark", "list", "--all-remotes", "--ignore-working-copy", "-T", template),
@@ -251,7 +255,7 @@ class JjAdapter:
                 "--no-graph",
                 "--ignore-working-copy",
                 "-T",
-                "commit_id++\\x00++change_id++\\n",
+                'commit_id ++ "\\x00" ++ change_id ++ "\\n"',
             ),
             "jj.visible_heads",
         )
@@ -268,9 +272,9 @@ class JjAdapter:
             heads.append(
                 {"object_id": _id(fields[0]), "change_id": fields[1], "authority": "visible_head"}
             )
-        return tuple(
-            sorted(heads, key=lambda item: item["object_id"]["value"])
-        ), _outcome(CollectionState.COMPLETE)
+        return tuple(sorted(heads, key=lambda item: item["object_id"]["value"])), _outcome(
+            CollectionState.COMPLETE
+        )
 
     def _history(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (
