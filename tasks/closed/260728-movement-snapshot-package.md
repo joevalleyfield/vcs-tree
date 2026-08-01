@@ -3,7 +3,7 @@ FKA:
 AKA: vcs movement feed; refs and delta descriptions; package extraction
 Legacy index:
 
-keywords: tooling, decomp, active, contract, snapshots, refs, deltas
+keywords: tooling, decomp, closed, contract, snapshots, refs, deltas
 
 Parent:
 Depends on: `260728-bootstrap-vcs-tree-incubator`
@@ -20,10 +20,10 @@ Extract the scanner behind a stable data model that can describe repository
 movement without conflating movement with progress.
 
 ## Current Reality
-The baseline behavior now has an installable, tested `src/` package boundary
-and console entry point. Its present-state collection and cache remain shaped
-around the existing renderer; it does not yet expose a versioned snapshot
-schema, normalized refs, or snapshot-to-snapshot descriptions.
+The package now provides versioned snapshot and delta envelopes, a machine-local
+append-only ledger, Git/jj native adapters, colocated snapshot collection, a
+deterministic delta engine, and additive CLI workflows. The standalone resource
+script and wrapper remain unchanged.
 
 ## Desired Reality
 The project has a package boundary and factual movement model supporting:
@@ -96,9 +96,15 @@ future recurring workspace pulses can compare and summarize.
   calculation, and CLI integration.
 
 ## Evidence
-- The package follow-on closed with a locked Python 3.9+ project, 26 passing
-  tests, 88.12% branch coverage, passing Ruff checks, build artifacts, and a
-  behavior-compatible empty-directory smoke scan.
+- Package extraction, contract, ledger, adapter, snapshot, delta, CLI, and
+  compatibility follow-ons are closed with durable task evidence.
+- The final suite has 120 passing tests with 100.00% statement and branch
+  coverage, and Ruff checks pass.
+- An offline wheel build succeeds as
+  `/tmp/vcs-tree-final-build/vcs_tree-0.1.0-py3-none-any.whl`.
+- A real colocated `/Users/tim/Documents` snapshot smoke reports generation 1,
+  complete Git/jj workspaces, complete jj bookmarks, and complete jj visible
+  heads.
 - `planning/history-surface-exploration.md` begins the native-surface contract
   with Git-only, colocated, linked-workspace, and controlled before/after
   fixture evidence.
@@ -140,18 +146,13 @@ future recurring workspace pulses can compare and summarize.
   truncating them.
 
 ## Open Fronts
-- Snapshot persistence and cache migration.
-- State-root selection, single-writer enforcement, integrity isolation, and
-  operator location warnings.
 - Optional Git reflog/dangling and jj operation-history depth.
 - Export-bundle framing for ledger-dependent snapshots.
 - Future shared/multi-writer migration and cross-machine identity.
 - Task-lifecycle adapters.
+- Explicit graduation/cutover of the package command in place of the live
+  resource script and wrapper.
 
 ## Next Actions
-- Execute `260801-implement-history-contract-models` as the common foundation.
-- After the model surface stabilizes, execute the ledger, Git adapter, and jj
-  adapter tasks according to their recorded dependencies.
-- Complete snapshot collection, delta calculation, and CLI integration without
-  folding deferred export, multi-writer, reflog, or task-lifecycle policy into
-  v1.
+- Treat optional reflog/deep-history, exports, shared identity, task-lifecycle
+  adapters, and live-resource cutover as separately authorized follow-on work.

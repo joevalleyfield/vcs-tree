@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Incubating
+> **Status:** Incubation implementation complete; cutover pending
 > **Last Sync:** 2026-08-01
 
 ## 0. Manual Triage
@@ -13,8 +13,8 @@
 
 ## 1. Open Queue
 
-- `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
-  defaults are decomposed into the ready implementation queue below.
+- `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
+  snapshots, deltas, and additive CLI are implemented and validated.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
