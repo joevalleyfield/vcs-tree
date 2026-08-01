@@ -3,7 +3,7 @@ FKA:
 AKA: nested discovery contract; repository ownership boundaries
 Legacy index:
 
-keywords: tooling, ready, nested, discovery, ownership, deduplication, boundaries
+keywords: tooling, closed, nested, discovery, ownership, deduplication, boundaries
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260728-movement-snapshot-package`; `260802-end-to-end-workflow-testing`
@@ -40,7 +40,13 @@ jj, and colocated repositories in a scanned tree.
 
 ## Completion Evidence
 
-- A concise normative note with examples for nested Git, nested jj, colocated,
-  symlink-alias, inaccessible, and parent/child cases.
-- A mapping from each rule to the implementation and validation tasks below.
-- No unresolved ownership or boundary question remains that blocks coding.
+- Added `docs/contracts/nested-discovery-v1.md`, defining the discovery
+  universe, canonical-root ownership, colocated deduplication, parent/child
+  boundaries, symlink and metadata traversal, deterministic ordering, local key
+  assignment, and partial/error handling.
+- The note includes examples and a direct mapping to implementation,
+  feature-validation, and E2E-validation tasks.
+- The incumbent recursive `.git`/`.jj` behavior is preserved explicitly, with
+  v1 additions limited to canonical grouping, outcomes, ordering, and safe
+  traversal boundaries.
+- No unresolved ownership or boundary question blocks downstream coding.

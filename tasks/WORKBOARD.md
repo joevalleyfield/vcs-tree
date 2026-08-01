@@ -20,8 +20,8 @@
 - `260802-end-to-end-workflow-testing` — closed; installed CLI workflows,
   controlled Git/colocated fixtures, error paths, and compatibility behavior
   are covered.
-- `260803-define-nested-repository-semantics` — ready; settle recursive
-  discovery, ownership, deduplication, and boundary rules first.
+- `260803-define-nested-repository-semantics` — closed; recursive discovery,
+  ownership, deduplication, and boundary rules are documented for coding.
 - `260803-restore-nested-repository-reporting` — blocked by nested semantics;
   integrate tree discovery into history snapshots and CLI reporting.
 - `260803-test-nested-repository-features` — blocked by nested reporting;
@@ -34,6 +34,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-define-nested-repository-semantics` — documented canonical-root
+  ownership, colocated deduplication, parent/child reporting, symlink and
+  metadata boundaries, deterministic ordering, and explicit scan outcomes.
 
 - `260802-end-to-end-workflow-testing` — added black-box init/inspect/snapshot/
   delta workflow coverage, corrupt/missing-state errors, default scanner
