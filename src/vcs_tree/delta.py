@@ -288,10 +288,29 @@ class HistoryDeltaCalculator:
         objects: Mapping[str, Mapping[str, Any]],
     ) -> list[Event]:
         events: list[Event] = []
-        for component, suppressed in (
-            ("refs", ["ref_created", "ref_deleted", "ref_target_changed"]),
-            ("workspaces", ["workspace_added", "workspace_removed", "workspace_head_changed"]),
-        ):
+        ref_component = "bookmarks" if new.get("mode") == "jj" else "refs"
+        checks = (
+            (
+                ref_component,
+                ["ref_created", "ref_deleted", "ref_target_changed"],
+            ),
+            (
+                "workspaces",
+                ["workspace_added", "workspace_removed", "workspace_head_changed"],
+            ),
+            (
+                "history",
+                [
+                    "history_first_observed",
+                    "history_became_reachable",
+                    "history_became_unreachable",
+                    "off_current_history_observed",
+                    "current_line_history_observed",
+                    "history_file_changes_observed",
+                ],
+            ),
+        )
+        for component, suppressed in checks:
             if not (_complete(old, component) and _complete(new, component)):
                 if (
                     _state(old, component) != _state(new, component)
@@ -313,9 +332,9 @@ class HistoryDeltaCalculator:
         events.extend(self._workspaces(old, new, objects)) if _complete(
             old, "workspaces"
         ) and _complete(new, "workspaces") else None
-        events.extend(self._refs(old, new, objects)) if _complete(old, "refs") and _complete(
-            new, "refs"
-        ) else None
+        events.extend(self._refs(old, new, objects)) if _complete(
+            old, ref_component
+        ) and _complete(new, ref_component) else None
         events.extend(self._history(old, new, objects)) if _complete(old, "history") and _complete(
             new, "history"
         ) else None

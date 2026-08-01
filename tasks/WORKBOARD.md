@@ -33,12 +33,19 @@
   long scans and a supported retained-snapshot listing.
 - `260805-delta-presentation-surfaces` — closed; formalize scan-relative,
   signal-first delta summaries with explicit audit and JSON views.
+- `260806-history-completeness-and-bookmarks` — closed; make delta completeness
+  mode-aware and disclose suppressed history movement.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260806-history-completeness-and-bookmarks` — made delta completeness
+  mode-aware for Git refs versus jj bookmarks, surfaced partial/error history
+  states, and validated nine actionable gaps in the retained real-world pair
+  with 146 tests and 100% coverage.
 
 - `260805-delta-presentation-surfaces` — added scan-relative delta identity,
   signal-first summaries, explicit no-op audit and JSON modes, uncertainty

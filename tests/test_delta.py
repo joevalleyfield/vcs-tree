@@ -103,6 +103,32 @@ def test_repository_location_is_scan_relative_or_explicitly_absolute():
     assert _repository_location({"locations": [{}]}, "/tmp/root") is None
 
 
+def test_jj_bookmarks_are_checked_instead_of_git_refs():
+    a = repo()
+    b = repo()
+    for item in (a, b):
+        item["mode"] = "jj"
+        item["bookmarks"] = []
+        item["collection"]["bookmarks"] = {"state": "complete", "errors": []}
+        item["collection"].pop("refs")
+    delta = HistoryDeltaCalculator(
+        delta_id_factory=lambda: "d", clock=lambda: "2026-08-01T12:01:00Z"
+    ).calculate(snap("s", "a", 1, a), snap("s", "b", 2, b))
+    assert delta.repository_deltas[0]["events"] == []
+
+
+def test_incomplete_history_is_reported_and_suppresses_history_events():
+    a = repo(history_state="complete")
+    b = repo(history_state="partial")
+    events = HistoryDeltaCalculator().calculate(
+        snap("s", "a", 1, a), snap("s", "b", 2, b)
+    ).repository_deltas[0]["events"]
+    assert len(events) == 1
+    assert events[0]["event"] == "comparison_incomplete"
+    assert events[0]["details"]["component"] == "history"
+    assert events[0]["details"]["to_state"] == "partial"
+
+
 def test_partial_refs_suppress_deletion_and_report_incomplete():
     a = repo(
         refs=(

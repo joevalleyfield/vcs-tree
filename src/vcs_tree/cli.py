@@ -88,7 +88,13 @@ def _print_delta_summary(document: dict[str, object], *, include_noops: bool) ->
                 marker = "?" if certainty == "indeterminate" else "*"
                 details = event.get("details", {})
                 relation = details.get("relation") if isinstance(details, dict) else None
-                suffix = f" (relation: {relation})" if relation else ""
+                if event["event"] == "comparison_incomplete" and isinstance(details, dict):
+                    suffix = (
+                        f" (component: {details.get('component')}, "
+                        f"state: {details.get('from_state')} -> {details.get('to_state')})"
+                    )
+                else:
+                    suffix = f" (relation: {relation})" if relation else ""
                 print(f"  {marker} {event['event']}{suffix}")
         else:
             print(f"{path} [{mode}] — no observed movement")
