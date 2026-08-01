@@ -14,8 +14,21 @@
 ## 1. Open Queue
 
 - `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
-  defaults are ready to decompose into ledger, adapter, snapshot, and delta
-  implementation tasks.
+  defaults are decomposed into the ready implementation queue below.
+- `260801-implement-history-contract-models` — ready; implement and validate
+  the shared v1 in-memory and JSON contract vocabulary.
+- `260801-build-local-history-ledger` — ready after contract models; implement
+  authoritative local identity, writer, generation, and immutable-object state.
+- `260801-implement-git-history-adapter` — ready after contract models; collect
+  selected Git refs, workspaces, annotated tags, and reachable history.
+- `260801-implement-jj-history-adapter` — ready after contract models; collect
+  jj workspaces, visible heads, bookmarks, conflicts, and null-root history.
+- `260801-collect-history-snapshots` — ready after the ledger and both native
+  adapters; persist deterministic lightweight manifests over ledger generations.
+- `260801-calculate-history-deltas` — ready after contract models and the
+  ledger; calculate deterministic factual events with completeness gates.
+- `260801-integrate-history-cli` — ready after snapshot and delta delivery;
+  expose operator commands and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
 

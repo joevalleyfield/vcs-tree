@@ -7,7 +7,10 @@ keywords: tooling, decomp, active, contract, snapshots, refs, deltas
 
 Parent:
 Depends on: `260728-bootstrap-vcs-tree-incubator`
-Blocks:
+Blocks: `260801-implement-history-contract-models`; `260801-build-local-history-ledger`;
+  `260801-implement-git-history-adapter`; `260801-implement-jj-history-adapter`;
+  `260801-collect-history-snapshots`; `260801-calculate-history-deltas`;
+  `260801-integrate-history-cli`
 Blocked by:
 Related:
 
@@ -88,8 +91,9 @@ future recurring workspace pulses can compare and summarize.
   `260729-draft-history-contracts`.
 - Initial identity, state, writer, retention, resilience, incomplete-history,
   and payload defaults settled under `260801-settle-v1-policy-defaults`.
-- Snapshot, ref, and delta transformations remain to be decomposed after their
-  contract implementation boundaries are planned.
+- Implementation is decomposed into seven ready tasks covering contract
+  models, authoritative state, native adapters, snapshot collection, delta
+  calculation, and CLI integration.
 
 ## Evidence
 - The package follow-on closed with a locked Python 3.9+ project, 26 passing
@@ -145,5 +149,9 @@ future recurring workspace pulses can compare and summarize.
 - Task-lifecycle adapters.
 
 ## Next Actions
-- Decompose ledger/model, Git adapter, jj adapter, snapshot collector, and
-  delta implementation into ready tasks.
+- Execute `260801-implement-history-contract-models` as the common foundation.
+- After the model surface stabilizes, execute the ledger, Git adapter, and jj
+  adapter tasks according to their recorded dependencies.
+- Complete snapshot collection, delta calculation, and CLI integration without
+  folding deferred export, multi-writer, reflog, or task-lifecycle policy into
+  v1.
