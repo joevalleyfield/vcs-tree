@@ -3,12 +3,12 @@ FKA:
 AKA: nested repository operator workflow
 Legacy index:
 
-keywords: testing, blocked, nested, e2e, cli, workflow, smoke
+keywords: testing, closed, nested, e2e, cli, workflow, smoke
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260803-test-nested-repository-features`
 Blocks:
-Blocked by: `260803-test-nested-repository-features`
+Blocked by:
 Related: `260802-end-to-end-workflow-testing`; `260801-integrate-history-cli`
 
 # Test Nested Repository End-to-End Workflow
@@ -38,7 +38,16 @@ operator-visible output and persisted snapshots match the feature contract.
 
 ## Completion Evidence
 
-- Record the exact CLI command sequence, repository tree, IDs, and output
-  summary for the nested workflow.
-- Prove source VCS state is unchanged by discovery and snapshot collection.
-- `uv run pytest -q` passes at 100% coverage and Ruff passes.
+- Added black-box CLI coverage for a temporary Git parent, colocated jj child,
+  and separate nested Git sibling: `history init`, `history snapshot` twice,
+  `history delta --from ID --to ID`, and the default renderer invocation.
+- Verified deterministic records `[('.', 'git'), ('child', 'colocated'),
+  ('sibling', 'git')]`, stable keys through a symlink alias, and unchanged
+  parent `HEAD` during discovery/snapshot collection.
+- Verified malformed nested `.git` children preserve the parent and return an
+  explicit child identity error. A minimal Git adapter boundary check prevents
+  upward parent-root attribution.
+- Real nested colocated jj smoke is covered when jj is available; the
+  deterministic fixture remains independent of external repositories.
+- `uv run pytest -q`: 136 tests, 100.00% coverage.
+- `uv run ruff check src/vcs_tree tests` passes.

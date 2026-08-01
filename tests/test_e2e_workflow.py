@@ -41,6 +41,22 @@ def make_git_fixture(tmp_path):
     return repository
 
 
+def make_nested_fixture(tmp_path):
+    root = make_git_fixture(tmp_path)
+    child = root / "child"
+    child.mkdir()
+    subprocess.run(["jj", "git", "init", "--colocate", str(child)], check=True, capture_output=True)
+    sibling = root / "sibling"
+    sibling.mkdir()
+    run_git(sibling, "init", "-q")
+    run_git(sibling, "config", "user.name", "vcs-tree test")
+    run_git(sibling, "config", "user.email", "vcs-tree@example.test")
+    (sibling / "README.md").write_text("sibling\n", encoding="utf-8")
+    run_git(sibling, "add", "README.md")
+    run_git(sibling, "commit", "-qm", "sibling")
+    return root
+
+
 def test_installed_cli_git_snapshot_delta_workflow_is_read_only(tmp_path):
     repository = make_git_fixture(tmp_path)
     state = tmp_path / "state"
@@ -130,3 +146,62 @@ def test_cli_colocated_fixture_reports_complete_native_surfaces(tmp_path):
     assert native["mode"] == "colocated"
     for component in ("workspaces", "bookmarks", "visible_heads"):
         assert native["collection"][component]["state"] == "complete"
+
+
+@pytest.mark.skipif(shutil.which("jj") is None, reason="jj is not installed")
+def test_nested_cli_reports_parent_colocated_child_and_sibling(tmp_path):
+    root = make_nested_fixture(tmp_path)
+    state = tmp_path / "state"
+    assert run_cli("history", "init", "--state-root", str(state)).returncode == 0
+    before = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    first = run_cli("history", "snapshot", "--state-root", str(state), str(root))
+    assert first.returncode == 0, first.stderr
+    first_document = json.loads(first.stdout)
+    records = first_document["repositories"]
+    assert [(item["locations"][0]["relative_path"], item["mode"]) for item in records] == [
+        (".", "git"),
+        ("child", "colocated"),
+        ("sibling", "git"),
+    ]
+    assert run_git(root, "rev-parse", "HEAD").stdout.strip() == before
+
+    alias = tmp_path / "root-alias"
+    alias.symlink_to(root, target_is_directory=True)
+    second = run_cli("history", "snapshot", "--state-root", str(state), str(alias))
+    assert second.returncode == 0, second.stderr
+    second_document = json.loads(second.stdout)
+    assert [item["repository_key"] for item in second_document["repositories"]] == [
+        item["repository_key"] for item in records
+    ]
+    delta = run_cli(
+        "history",
+        "delta",
+        "--state-root",
+        str(state),
+        "--from",
+        first_document["snapshot_id"],
+        "--to",
+        second_document["snapshot_id"],
+    )
+    assert delta.returncode == 0, delta.stderr
+    assert len(json.loads(delta.stdout)["repository_deltas"]) == 3
+
+    rendered = run_cli(str(root), "--text-symbols")
+    assert rendered.returncode == 0
+    assert "child" in rendered.stdout and "sibling" in rendered.stdout
+
+
+def test_nested_cli_preserves_siblings_when_child_is_malformed(tmp_path):
+    root = make_git_fixture(tmp_path)
+    broken = root / "broken"
+    (broken / ".git").mkdir(parents=True)
+    state = tmp_path / "state"
+    assert run_cli("history", "init", "--state-root", str(state)).returncode == 0
+    snapshot = run_cli("history", "snapshot", "--state-root", str(state), str(root))
+    assert snapshot.returncode == 0, snapshot.stderr
+    records = json.loads(snapshot.stdout)["repositories"]
+    assert len(records) == 2
+    assert records[0]["locations"][0]["relative_path"] == "."
+    assert records[0]["collection"]["identity"]["state"] == "complete"
+    assert records[1]["locations"][0]["relative_path"] == "broken"
+    assert records[1]["collection"]["identity"]["state"] == "error"

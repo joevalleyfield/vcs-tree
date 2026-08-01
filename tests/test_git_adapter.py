@@ -26,8 +26,7 @@ def test_parsers_preserve_native_shapes():
     assert [item["value"] for item in commit["parents"]] == ["p", "q"]
     assert commit["committer"]["email"] == "b@example"
     worktrees = _parse_worktrees(
-        "worktree /repo\nHEAD ABC\nbranch refs/heads/main\n\n"
-        "worktree /linked\nHEAD DEF\n"
+        "worktree /repo\nHEAD ABC\nbranch refs/heads/main\n\nworktree /linked\nHEAD DEF\n"
     )
     assert worktrees[1]["role"] == "linked"
 
@@ -58,7 +57,9 @@ def test_successful_collection_normalizes_refs_history_and_workspaces(tmp_path):
             completed("worktree " + str(tmp_path) + "\nHEAD ABC\nbranch refs/heads/main\n\n"),
             completed(" M file\n"),
             completed("refs/heads/main\x00ABC\x00commit\x00\nrefs/tags/v1\x00TAG\x00tag\x00ABC\n"),
-            completed("ABC\x00P\x00Alice\x00a@example\x002026-01-01T00:00:00Z\x00Bob\x00b@example\x002026-01-02T00:00:00Z\x00summary\n"),
+            completed(
+                "ABC\x00P\x00Alice\x00a@example\x002026-01-01T00:00:00Z\x00Bob\x00b@example\x002026-01-02T00:00:00Z\x00summary\n"
+            ),
         ]
     )
     observation = GitAdapter(tmp_path, runner=lambda _command: next(responses)).collect()
@@ -85,6 +86,16 @@ def test_identity_error_isolated(tmp_path):
     ).collect()
     assert observation.identity.state is CollectionState.ERROR
     assert observation.collection["identity"].errors[0].exit_code == 128
+
+
+def test_identity_rejects_parent_repository_boundary(tmp_path):
+    child = tmp_path / "child"
+    child.mkdir()
+    observation = GitAdapter(
+        child, runner=lambda _command: completed(str(tmp_path) + "\n")
+    ).collect()
+    assert observation.identity.state is CollectionState.ERROR
+    assert observation.collection["identity"].errors[0].kind == "boundary_error"
 
 
 @pytest.mark.parametrize(
@@ -168,11 +179,7 @@ def test_default_runner_and_additional_error_branches(monkeypatch, tmp_path):
 
     responses = iter(
         [
-            completed(
-                "worktree /other\nHEAD ABC\n\nworktree "
-                + str(tmp_path)
-                + "\nHEAD DEF\n\n"
-            ),
+            completed("worktree /other\nHEAD ABC\n\nworktree " + str(tmp_path) + "\nHEAD DEF\n\n"),
             completed(""),
         ]
     )
@@ -183,9 +190,12 @@ def test_default_runner_and_additional_error_branches(monkeypatch, tmp_path):
     assert workspaces[1]["working_copy"]["state"] == "clean"
     assert outcome.state is CollectionState.COMPLETE
 
-    complete = GitAdapter(tmp_path, runner=lambda _command: completed(
-        "ABC\x00\x00Alice\x00a@example\x002026-01-01T00:00:00Z\x00Bob\x00b@example\x002026-01-02T00:00:00Z\x00summary\n"
-    ))
+    complete = GitAdapter(
+        tmp_path,
+        runner=lambda _command: completed(
+            "ABC\x00\x00Alice\x00a@example\x002026-01-01T00:00:00Z\x00Bob\x00b@example\x002026-01-02T00:00:00Z\x00summary\n"
+        ),
+    )
     _, outcome, boundary = complete._history(
         ({"object_id": {"value": "abc"}, "peeled_object_id": None},)
     )

@@ -92,9 +92,7 @@ def _parse_commit(line: str) -> dict:
         summary,
     ) = fields
     parent_ids = [
-        {"algorithm": "sha1", "value": parent.lower()}
-        for parent in parents.split()
-        if parent
+        {"algorithm": "sha1", "value": parent.lower()} for parent in parents.split() if parent
     ]
     return {
         "kind": "commit",
@@ -170,6 +168,21 @@ class GitAdapter:
                 {"identity": _outcome(CollectionState.ERROR, root_error)},
             )
         root = Path(root_output.strip())
+        if root.resolve() != self.path.resolve():
+            error = _error(
+                "boundary_error",
+                "git.identity",
+                f"Git resolved parent root {root} for requested root {self.path}",
+            )
+            return GitObservation(
+                self.path,
+                _outcome(CollectionState.ERROR, error),
+                (),
+                (),
+                (),
+                HistoryBoundary(HistoryBoundaryState.UNKNOWN),
+                {"identity": _outcome(CollectionState.ERROR, error)},
+            )
         identity = _outcome(CollectionState.COMPLETE)
         workspaces, workspace_outcome = self._workspaces()
         refs, ref_outcome = self._refs()
@@ -252,8 +265,10 @@ class GitAdapter:
         roots = [ref["peeled_object_id"] or ref["object_id"] for ref in refs]
         values = [root["value"] for root in roots]
         if not values:
-            return (), _outcome(CollectionState.COMPLETE), HistoryBoundary(
-                HistoryBoundaryState.COMPLETE
+            return (
+                (),
+                _outcome(CollectionState.COMPLETE),
+                HistoryBoundary(HistoryBoundaryState.COMPLETE),
             )
         output, error = self._call(
             (
@@ -264,15 +279,19 @@ class GitAdapter:
             "git.history",
         )
         if error:
-            return (), _outcome(CollectionState.ERROR, error), HistoryBoundary(
-                HistoryBoundaryState.UNKNOWN
+            return (
+                (),
+                _outcome(CollectionState.ERROR, error),
+                HistoryBoundary(HistoryBoundaryState.UNKNOWN),
             )
         try:
             history = tuple(_parse_commit(line) for line in output.splitlines() if line)
         except ValueError as exc:
-            return (), _outcome(
-                CollectionState.PARTIAL, _error("parse_error", "git.history", str(exc))
-            ), HistoryBoundary(HistoryBoundaryState.UNKNOWN)
+            return (
+                (),
+                _outcome(CollectionState.PARTIAL, _error("parse_error", "git.history", str(exc))),
+                HistoryBoundary(HistoryBoundaryState.UNKNOWN),
+            )
         shallow_file = self.path / ".git" / "shallow"
         boundaries = ()
         if shallow_file.is_file():
@@ -282,12 +301,18 @@ class GitAdapter:
                 if line.strip()
             )
         if boundaries:
-            return history, _outcome(CollectionState.COMPLETE), HistoryBoundary(
-                HistoryBoundaryState.SHALLOW,
-                tuple(ObjectId.from_dict(item) for item in boundaries),
+            return (
+                history,
+                _outcome(CollectionState.COMPLETE),
+                HistoryBoundary(
+                    HistoryBoundaryState.SHALLOW,
+                    tuple(ObjectId.from_dict(item) for item in boundaries),
+                ),
             )
-        return history, _outcome(CollectionState.COMPLETE), HistoryBoundary(
-            HistoryBoundaryState.COMPLETE
+        return (
+            history,
+            _outcome(CollectionState.COMPLETE),
+            HistoryBoundary(HistoryBoundaryState.COMPLETE),
         )
 
 
