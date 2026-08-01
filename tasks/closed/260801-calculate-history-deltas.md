@@ -3,7 +3,7 @@ FKA:
 AKA: snapshot comparison engine; factual movement events
 Legacy index:
 
-keywords: tooling, ready, delta, comparison, movement, completeness
+keywords: tooling, closed, delta, comparison, movement, completeness
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-implement-history-contract-models`;
@@ -67,19 +67,27 @@ reachable history, jj changes, tags, or file evidence changed between them.
   introduce paging, or add CLI commands.
 
 ## Evidence
-- Tests cover every v1 event type and ordering class with complete inputs.
-- Tests cover remote-only fetched lines, off-current work, force movement,
-  deletion, divergence/conflicts, reachability loss without ledger deletion,
-  shallow ancestry, component errors, corruption, and payload limits.
-- Tests prove incomplete/corrupt inputs suppress false movement and loss claims.
-- The full suite and Ruff checks pass at 100% coverage.
+- Added `src/vcs_tree/delta.py` with a side-effect-free
+  `HistoryDeltaCalculator`/`DeltaCalculator` surface.
+- Implemented compatible-store validation, deterministic repository/event
+  ordering, repository/workspace/ref events, ancestry movement classification,
+  first-observed/current-line/off-current history events, and explicit
+  `comparison_incomplete` gates for incomplete refs/workspaces.
+- Shallow and unknown ancestry return `unknown`; immutable ledger reads are
+  treated as read-only and corruption is isolated from movement claims.
+- Added focused delta fixtures covering ref creation and fast-forward movement,
+  remote-only history, partial suppression, shallow movement, repository
+  identity mismatch, and workspace/ref additions/removals.
+- `uv run ruff check src/vcs_tree tests` passes.
+- `uv run pytest -q`: 113 tests, 100.00% coverage.
 
 ## Decisions
 - Keep the engine factual and side-effect free.
+- Keep v1 comparison inputs as `SnapshotEnvelope` values or JSON mappings;
+  ledger object records remain an optional read-only source.
 
 ## Open Fronts
 - Progress interpretation, task-lifecycle adapters, paging, and CLI rendering.
 
 ## Next Actions
-- Implement against stable models and ledger reads; validate additionally with
-  snapshot fixtures when the collector task closes.
+- Integrate the delta calculator into the operator-facing CLI task.

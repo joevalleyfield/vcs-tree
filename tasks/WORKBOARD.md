@@ -15,12 +15,17 @@
 
 - `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
   defaults are decomposed into the ready implementation queue below.
-- `260801-calculate-history-deltas` — ready after contract models and the
-  ledger; calculate deterministic factual events with completeness gates.
+- `260801-calculate-history-deltas` — closed; deterministic factual comparison
+  events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — ready after snapshot and delta delivery;
   expose operator commands and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260801-calculate-history-deltas` — implemented deterministic snapshot
+  comparison, ancestry movement classification, remote/off-current history
+  events, and fail-closed completeness gates with 113 tests and 100% coverage;
+  CLI integration is now next.
 
 - `260801-collect-history-snapshots` — implemented generation-backed snapshot
   orchestration, stable local keys, colocated Git/jj merging, object
