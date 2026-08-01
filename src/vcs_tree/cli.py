@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def _build_history_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the command-line scanner."""
-    values = list(argv) if argv is not None else None
+    values = list(argv) if argv is not None else sys.argv[1:]
     if values and values[0] == "history":
         return _history_main(_build_history_parser().parse_args(values[1:]))
     args = build_parser().parse_args(values)

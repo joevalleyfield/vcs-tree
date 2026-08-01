@@ -22,6 +22,10 @@
 
 ## 2. Recent Closures
 
+- `260801-fix-cli-entry-dispatch` — fixed installed-entry-point argument
+  dispatch so `uv run vcs-tree history --help` and history subcommands reach
+  the additive history parser; 120 tests and 100% coverage.
+
 - `260801-integrate-history-cli` — added explicit init/inspect/snapshot/delta
   commands, machine-local location warnings, compatibility-preserving default
   scanning, and 119-test/100%-coverage validation.

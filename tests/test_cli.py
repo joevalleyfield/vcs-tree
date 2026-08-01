@@ -129,3 +129,10 @@ def test_history_command_reports_ledger_errors(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli.HistoryLedger, "open", Mock(side_effect=LedgerError("broken")))
     assert cli.main(["history", "snapshot", "--state-root", str(tmp_path)]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
+def test_entry_point_uses_process_arguments_for_history_help(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "argv", ["vcs-tree", "history", "--help"])
+    with pytest.raises(SystemExit, match="0"):
+        cli.main()
+    assert "Inspect durable history" in capsys.readouterr().out
