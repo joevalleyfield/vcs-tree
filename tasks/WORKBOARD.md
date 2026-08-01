@@ -28,6 +28,8 @@
   validate feature behavior and failure boundaries.
 - `260803-test-nested-repository-e2e` — blocked by nested feature tests;
   validate the installed operator workflow and compatibility behavior.
+- `260804-history-observability-and-index` — ready; add stderr progress for
+  long scans and a supported retained-snapshot listing.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
