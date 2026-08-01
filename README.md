@@ -114,3 +114,19 @@ task.
 - `tasks/open/` — active and inception work
 - `tasks/closed/` — completed task evidence
 - `tasks/WORKBOARD.md` — current operational index
+# History workflow
+
+The additive `history` commands keep the existing scanner invocation intact:
+
+```text
+vcs-tree history init --state-root PATH
+vcs-tree history inspect --state-root PATH
+vcs-tree history snapshot --state-root PATH REPOSITORY
+vcs-tree history delta --state-root PATH --from SNAPSHOT --to SNAPSHOT
+```
+
+Authoritative history state, repository keys, and writer enrollment are
+machine-local. The command reports the resolved state, configuration, and
+disposable cache locations and warns that these control structures do not
+follow a cloud-synchronized repository tree. The renderer cache remains
+disposable and is never promoted to authoritative history.

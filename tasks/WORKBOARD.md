@@ -17,10 +17,14 @@
   defaults are decomposed into the ready implementation queue below.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
-- `260801-integrate-history-cli` — ready after snapshot and delta delivery;
-  expose operator commands and keep authoritative state out of disposable cache.
+- `260801-integrate-history-cli` — closed; additive history commands expose
+  operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260801-integrate-history-cli` — added explicit init/inspect/snapshot/delta
+  commands, machine-local location warnings, compatibility-preserving default
+  scanning, and 119-test/100%-coverage validation.
 
 - `260801-calculate-history-deltas` — implemented deterministic snapshot
   comparison, ancestry movement classification, remote/off-current history

@@ -3,7 +3,7 @@ FKA:
 AKA: history command surface; cache compatibility migration
 Legacy index:
 
-keywords: tooling, ready, cli, snapshots, deltas, cache, warnings
+keywords: tooling, closed, cli, snapshots, deltas, cache, warnings
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-collect-history-snapshots`;
@@ -66,15 +66,24 @@ existing cache could be mistaken for authoritative state.
   implement export bundles, or perform the eventual cutover.
 
 ## Evidence
-- CLI tests cover store inspection/init, snapshot collection, delta comparison,
-  partial/error exits, writer refusal, and location/cloud-sync warnings.
-- Compatibility tests prove the incumbent default command and renderer cache
-  behavior remain unchanged.
-- Documentation clearly distinguishes authoritative state from disposable cache.
-- The full suite and Ruff checks pass at 100% coverage.
+- Added additive `history init`, `history inspect`, `history snapshot`, and
+  `history delta` command workflows while leaving the default scanner parser and
+  renderer invocation unchanged.
+- Init and inspect report authoritative state, config, and disposable cache
+  locations, writer identity/policy, and the machine-local/cloud-sync warning.
+- Snapshot and delta commands use the durable ledger and return non-zero JSON
+  error/partial results without promoting renderer cache data.
+- Added CLI compatibility and workflow tests, including uninitialized stores,
+  malformed/degraded state, missing snapshots, and ledger errors.
+- Documented the distinction between authoritative state and disposable cache
+  in `README.md`.
+- `uv run ruff check src/vcs_tree tests` passes.
+- `uv run pytest -q`: 119 tests, 100.00% coverage.
 
 ## Decisions
 - Make the history workflow explicit and additive during incubation.
+- Keep `history` behind a dispatch in `main` so arbitrary positional paths
+  retain the incumbent default parser behavior.
 
 ## Open Fronts
 - Live-resource cutover, recurring pulses, exports, and task-lifecycle adapters.
