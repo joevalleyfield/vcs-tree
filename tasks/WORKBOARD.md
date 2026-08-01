@@ -20,6 +20,14 @@
 - `260802-end-to-end-workflow-testing` — closed; installed CLI workflows,
   controlled Git/colocated fixtures, error paths, and compatibility behavior
   are covered.
+- `260803-define-nested-repository-semantics` — ready; settle recursive
+  discovery, ownership, deduplication, and boundary rules first.
+- `260803-restore-nested-repository-reporting` — blocked by nested semantics;
+  integrate tree discovery into history snapshots and CLI reporting.
+- `260803-test-nested-repository-features` — blocked by nested reporting;
+  validate feature behavior and failure boundaries.
+- `260803-test-nested-repository-e2e` — blocked by nested feature tests;
+  validate the installed operator workflow and compatibility behavior.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
