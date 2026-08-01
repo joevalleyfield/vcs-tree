@@ -3,7 +3,7 @@ FKA:
 AKA: authoritative history state; local repository registry
 Legacy index:
 
-keywords: tooling, ready, ledger, state, identity, resilience
+keywords: tooling, closed, ledger, state, identity, resilience
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-implement-history-contract-models`
@@ -68,6 +68,14 @@ objects survive individual scans outside the evictable cache.
   and this task file; update `tasks/WORKBOARD.md` only for lifecycle changes.
 - Do not migrate the existing CLI cache, collect repository history, define
   export bundles, or add another writer.
+- Implemented `src/vcs_tree/ledger.py` with machine-local path resolution,
+  state/config/cache reporting, single-writer enrollment, and opaque local
+  repository keys.
+- Added independently checksummed manifest, registry, immutable-object,
+  generation, and snapshot-index components with atomic replacement writes.
+- Added fail-closed corruption detection that degrades only affected
+  components and never mutates a source repository.
+- Exported the ledger API from `vcs_tree`.
 
 ## Evidence
 - Tests prove stable local keys, immutable deduplication, monotonic generations,
@@ -77,14 +85,27 @@ objects survive individual scans outside the evictable cache.
 - Tests prove default authoritative paths are not cache paths and that location
   metadata/warnings are available to the caller.
 - The full suite and Ruff checks pass at 100% coverage.
+- Added `tests/test_ledger.py` covering stable identity, deduplication,
+  retention, generations, writer refusal, state placement warnings, atomic
+  failure, malformed components, and isolated corruption.
+- `uv run ruff check src/vcs_tree tests` passed.
+- `uv run pytest -q` passed: 75 tests, 100.00% total coverage.
+- `uv build --wheel --offline --out-dir /tmp/vcs-tree-ledger-build` passed.
 
 ## Decisions
 - Treat all ledger contents as observational application state, never custody
   evidence or repository instructions.
+- Keep each persisted component independently checksummed so object-history
+  damage cannot erase the repository registry or authorize source mutation.
+- Use `~/.local/state/vcs-tree` (or `XDG_STATE_HOME`) for authority and keep
+  `XDG_CONFIG_HOME`/`XDG_CACHE_HOME` in the operator location report.
 
 ## Open Fronts
 - Portable export, shared writers, cross-machine identity, and cache migration.
+- Snapshot orchestration still owns publishing full manifests over committed
+  generations.
 
 ## Next Actions
-- Implement against the stable v1 models and close with state-layout and
-  failure-recovery evidence.
+- Claim `260801-implement-git-history-adapter` or
+  `260801-implement-jj-history-adapter`; both can now use the ledger's stable
+  identity and object APIs through the later snapshot task.

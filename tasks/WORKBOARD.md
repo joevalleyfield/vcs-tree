@@ -15,8 +15,6 @@
 
 - `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
   defaults are decomposed into the ready implementation queue below.
-- `260801-build-local-history-ledger` — ready after contract models; implement
-  authoritative local identity, writer, generation, and immutable-object state.
 - `260801-implement-git-history-adapter` — ready after contract models; collect
   selected Git refs, workspaces, annotated tags, and reachable history.
 - `260801-implement-jj-history-adapter` — ready after contract models; collect
@@ -30,6 +28,10 @@
 
 ## 2. Recent Closures
 
+- `260801-build-local-history-ledger` — implemented machine-local authoritative
+  state, local writer/repository identity, checksummed immutable objects,
+  generations, snapshot index, corruption isolation, 75 tests, and the 100%
+  coverage gate; native adapters may now proceed.
 - `260801-implement-history-contract-models` — implemented frozen v1 contract
   primitives, deterministic snapshot/delta JSON codecs, 62 tests, and the
   100% coverage gate; dependent implementation tasks may now claim the model
