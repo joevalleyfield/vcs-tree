@@ -3,7 +3,7 @@ FKA:
 AKA: operator workflow smoke; package CLI acceptance
 Legacy index:
 
-keywords: testing, ready, e2e, workflow, cli, smoke, colocated
+keywords: testing, closed, e2e, workflow, cli, smoke, colocated
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260802-feature-behavioral-testing`
@@ -48,8 +48,18 @@ machine-local state boundary.
 
 ## Completion Evidence
 
-- Include the exact operator command sequence and captured outcome summary.
-- Record fixture paths and prove source VCS state is unchanged before/after.
-- `uv run pytest -q` passes with the configured 100% coverage gate.
+- Added `tests/test_e2e_workflow.py` and exercised the installed command with
+  this sequence: `history init`, `history inspect`, `history snapshot` twice,
+  then `history delta --from ID --to ID`, followed by the default scanner.
+- A temporary Git fixture produced two real commits and a factual
+  `ref_target_changed` delta; the first snapshot left `HEAD` unchanged.
+- Missing snapshots and a corrupted manifest returned JSON `status: error` or
+  `status: degraded` with non-zero exit codes.
+- A temporary `jj git init --colocate` fixture reported `colocated` mode and
+  complete `workspaces`, `bookmarks`, and `visible_heads` components.
+- The default scanner remained behavior-compatible when its disposable cache
+  was redirected to a temporary test cache; live resource files were untouched.
+- `uv run pytest -q`: 127 tests, 100.00% coverage.
 - `uv run ruff check src/vcs_tree tests` passes.
-- A real colocated smoke is recorded separately from deterministic fixtures.
+- Real colocated smoke independently reports complete native surfaces for
+  `/Users/tim/Documents`.

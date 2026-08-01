@@ -17,15 +17,19 @@
   snapshots, deltas, and additive CLI are implemented and validated.
 - `260802-feature-behavioral-testing` — closed; component-level behavior and
   failure policies are covered without production changes.
-- `260802-end-to-end-workflow-testing` — ready after feature tests; exercise
-  the installed CLI through initialization, snapshots, deltas, and real
-  colocated smoke without changing live resources.
+- `260802-end-to-end-workflow-testing` — closed; installed CLI workflows,
+  controlled Git/colocated fixtures, error paths, and compatibility behavior
+  are covered.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-end-to-end-workflow-testing` — added black-box init/inspect/snapshot/
+  delta workflow coverage, corrupt/missing-state errors, default scanner
+  compatibility, and colocated jj smoke; 127 tests pass with 100% coverage.
 
 - `260802-feature-behavioral-testing` — added focused contract, ledger,
   adapter, and delta behavior tests; 124 tests pass with 100% coverage.
