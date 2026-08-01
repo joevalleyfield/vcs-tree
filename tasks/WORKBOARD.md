@@ -15,8 +15,6 @@
 
 - `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
   defaults are decomposed into the ready implementation queue below.
-- `260801-implement-jj-history-adapter` — ready after contract models; collect
-  jj workspaces, visible heads, bookmarks, conflicts, and null-root history.
 - `260801-collect-history-snapshots` — ready after the ledger and both native
   adapters; persist deterministic lightweight manifests over ledger generations.
 - `260801-calculate-history-deltas` — ready after contract models and the
@@ -26,6 +24,9 @@
 
 ## 2. Recent Closures
 
+- `260801-implement-jj-history-adapter` — implemented read-only jj workspace,
+  bookmark, visible-head, commit/change, conflict, and virtual-root collection
+  with 101 tests and 100% coverage; snapshot orchestration is now next.
 - `260801-implement-git-history-adapter` — implemented read-only Git identity,
   worktree, selected-ref, tag, reachable-history, and shallow-boundary
   collection with 90 tests and 100% coverage; jj adapter remains next.

@@ -3,7 +3,7 @@ FKA:
 AKA: jj native history collector
 Legacy index:
 
-keywords: tooling, ready, jj, adapter, bookmarks, history
+keywords: tooling, closed, jj, adapter, bookmarks, history
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-implement-history-contract-models`;
@@ -63,6 +63,14 @@ describe off-current jj history and conflicted bookmark target sets.
   this task file; update `tasks/WORKBOARD.md` only for lifecycle changes.
 - Do not write ledger state, calculate deltas, inspect operation history by
   default, or change existing renderer output.
+- Implemented `src/vcs_tree/jj_adapter.py` with an injectable read-only jj
+  command boundary and normalized `JjObservation` output.
+- Added workspace/store hints, all-remotes bookmark collection, conflict target
+  sets, visible heads, commit/change identity, parent edges, and virtual-root
+  records.
+- Kept jj-native observations independent from Git facts for later colocation
+  merging and ledger persistence.
+- Exported `JjAdapter` and `JjObservation` from `vcs_tree`.
 
 ## Evidence
 - Controlled tests cover colocated and linked workspaces, null root, dirty and
@@ -72,13 +80,26 @@ describe off-current jj history and conflicted bookmark target sets.
   round trips without loss.
 - Tests prove collection does not mutate the jj or Git repository.
 - The full suite and Ruff checks pass at 100% coverage.
+- Added `tests/test_jj_adapter.py` covering parser fixtures, linked-store
+  hints, workspaces, dirty state, bookmarks/conflicts, visible heads, null
+  root, malformed output, timeouts, process errors, and command failures.
+- `uv run ruff check src/vcs_tree tests` passed.
+- `uv run pytest -q` passed: 101 tests, 100.00% total coverage.
+- Read-only smoke collection of this repository returned complete identity and
+  boundary outcomes without changing repository state.
 
 ## Decisions
 - Keep jj-native semantics intact until the snapshot collector combines them
   with Git facts for colocated repositories.
+- Preserve commit IDs for graph identity and change IDs for logical-change
+  identity; represent the all-zero jj parent as an explicit virtual root.
+- Collect all-remotes bookmarks and visible heads so unbookmarked or remote-only
+  work remains factual.
 
 ## Open Fronts
 - Operation history, optional deep collection, persistence, and delta meaning.
+- Snapshot orchestration still owns repository keys and Git/jj colocation merge.
 
 ## Next Actions
-- Implement from the exploration fixtures after the model task closes.
+- Claim `260801-collect-history-snapshots`; it can now combine both native
+  adapters over the local ledger.
