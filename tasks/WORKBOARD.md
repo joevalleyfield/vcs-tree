@@ -24,7 +24,8 @@
   ownership, deduplication, and boundary rules are documented for coding.
 - `260803-restore-nested-repository-reporting` — closed; recursive history
   discovery and nested/colocated snapshot reporting are implemented.
-- `260803-test-nested-repository-features` — blocked by nested reporting;
+- `260803-test-nested-repository-features` — closed; nested discovery behavior
+  and failure boundaries are covered.
   validate feature behavior and failure boundaries.
 - `260803-test-nested-repository-e2e` — blocked by nested feature tests;
   validate the installed operator workflow and compatibility behavior.
@@ -36,6 +37,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-test-nested-repository-features` — covered Git/jj/colocated roots,
+  nested ownership, aliases, repeated stable keys, discovery errors, ordering,
+  and read-only behavior; 133 tests pass with 100% coverage.
 
 - `260803-restore-nested-repository-reporting` — added canonical recursive
   history discovery, parent/child ownership, colocated deduplication, merged

@@ -107,3 +107,70 @@ def test_nested_collection_publishes_distinct_sorted_records(tmp_path):
     assert [item["mode"] for item in repositories] == ["git", "colocated"]
     assert [item["repository_key"] for item in repositories] == ["repo-0001", "repo-0002"]
     assert result.envelope.scan["outcome"]["state"] == "complete"
+
+
+def test_jj_only_and_alias_scans_reuse_the_same_local_key(tmp_path):
+    (tmp_path / ".jj").mkdir()
+    alias = tmp_path.parent / f"{tmp_path.name}-alias"
+    alias.symlink_to(tmp_path, target_is_directory=True)
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer")
+    collector = SnapshotCollector(
+        ledger,
+        jj_factory=lambda path: type(
+            "JjFactory", (), {"collect": lambda self: jj_observation(path)}
+        )(),
+    )
+    first = collector.collect(tmp_path)
+    second = collector.collect(alias)
+    assert first.envelope.repositories[0]["mode"] == "jj"
+    assert first.envelope.repositories[0]["repository_key"] == "repo-0001"
+    assert second.envelope.repositories[0]["repository_key"] == "repo-0001"
+    assert first.envelope.repositories[0]["locations"][0]["relative_path"] == "."
+
+
+def test_discovery_error_keeps_parent_and_sibling_records(monkeypatch, tmp_path):
+    parent = tmp_path / "parent"
+    sibling = tmp_path / "sibling"
+    parent.mkdir()
+    sibling.mkdir()
+    (parent / ".git").mkdir()
+    (sibling / ".git").mkdir()
+
+    def walk_with_error(root, *, followlinks, onerror):
+        onerror(OSError("child denied"))
+        yield str(parent), [".git"], []
+        yield str(sibling), [".git"], []
+
+    monkeypatch.setattr(snapshot_module.os, "walk", walk_with_error)
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer")
+    result = SnapshotCollector(
+        ledger,
+        git_factory=lambda path: type(
+            "GitFactory", (), {"collect": lambda self: git_observation(path)}
+        )(),
+    ).collect(tmp_path)
+    assert len(result.envelope.repositories) == 2
+    assert result.envelope.scan["outcome"]["state"] == "partial"
+    assert result.envelope.scan["outcome"]["errors"][0]["kind"] == "discovery_error"
+
+
+def test_nested_collection_is_read_only_and_repeated_keys_stay_stable(tmp_path):
+    (tmp_path / ".git").mkdir()
+    child = tmp_path / "child"
+    (child / ".git").mkdir(parents=True)
+    before = sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob(".git"))
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer")
+    collector = SnapshotCollector(
+        ledger,
+        git_factory=lambda path: type(
+            "GitFactory", (), {"collect": lambda self: git_observation(path)}
+        )(),
+    )
+    first = collector.collect(tmp_path)
+    second = collector.collect(tmp_path)
+    after = sorted(str(path.relative_to(tmp_path)) for path in tmp_path.rglob(".git"))
+    assert before == after
+    assert [item["repository_key"] for item in first.envelope.repositories] == [
+        item["repository_key"] for item in second.envelope.repositories
+    ]
+    assert second.generation == first.generation + 1

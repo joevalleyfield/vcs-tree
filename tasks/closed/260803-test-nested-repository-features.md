@@ -3,12 +3,12 @@ FKA:
 AKA: nested discovery feature matrix
 Legacy index:
 
-keywords: testing, blocked, nested, feature, discovery, deduplication, boundaries
+keywords: testing, closed, nested, feature, discovery, deduplication, boundaries
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260803-restore-nested-repository-reporting`
 Blocks: `260803-test-nested-repository-e2e`
-Blocked by: `260803-restore-nested-repository-reporting`
+Blocked by:
 Related: `260803-define-nested-repository-semantics`
 
 # Test Nested Repository Features
@@ -37,6 +37,11 @@ deduplication, boundaries, and deterministic reporting.
 
 ## Completion Evidence
 
-- A feature-to-rule matrix identifies each nested semantic and test.
-- `uv run pytest -q` and `uv run ruff check src/vcs_tree tests` pass.
-- Tests include before/after source-state checks for read-only discovery.
+- Expanded `tests/test_nested_snapshot.py` into a feature-to-rule matrix for
+  scan-root, nested parent/child, Git-only, jj-only, colocated, alias,
+  repeated-scan, deterministic-order, stable-key, and discovery-error cases.
+- Tests prove a discovery error preserves parent and sibling records, and that
+  source marker state is unchanged before/after repeated collection.
+- `uv run pytest -q`: 133 tests, 100.00% coverage.
+- `uv run ruff check src/vcs_tree tests` passes.
+- The dependent nested E2E task remains the next validation slice.
