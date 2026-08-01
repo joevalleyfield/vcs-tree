@@ -15,6 +15,11 @@
 
 - `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
   snapshots, deltas, and additive CLI are implemented and validated.
+- `260802-feature-behavioral-testing` — ready; prove component-level feature
+  behavior and failure policies across the implemented v1 package.
+- `260802-end-to-end-workflow-testing` — ready after feature tests; exercise
+  the installed CLI through initialization, snapshots, deltas, and real
+  colocated smoke without changing live resources.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
