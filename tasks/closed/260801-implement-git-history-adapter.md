@@ -3,7 +3,7 @@ FKA:
 AKA: Git native history collector
 Legacy index:
 
-keywords: tooling, ready, git, adapter, refs, history
+keywords: tooling, closed, git, adapter, refs, history
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-implement-history-contract-models`;
@@ -61,6 +61,14 @@ worktrees through the history contract.
   this task file; update `tasks/WORKBOARD.md` only for lifecycle changes.
 - Do not write ledger state, calculate deltas, inspect reflogs/dangling objects,
   fetch objects, or change existing renderer output.
+- Implemented `src/vcs_tree/git_adapter.py` with an injectable read-only Git
+  command boundary and normalized `GitObservation` output.
+- Added selected `refs/heads`, `refs/remotes`, and `refs/tags` collection,
+  annotated/peeled tag preservation, worktree/status facts, reachable commit
+  metadata, and shallow-boundary detection.
+- Kept repository identity, collection outcomes, and history boundaries
+  separate so later snapshot orchestration can assign ledger keys.
+- Exported `GitAdapter` and `GitObservation` from `vcs_tree`.
 
 ## Evidence
 - Controlled tests cover Git-only and colocated repositories, linked worktrees,
@@ -69,12 +77,26 @@ worktrees through the history contract.
 - Tests prove selected namespaces exclude irrelevant colocated internals.
 - Tests prove collection does not change repository refs or object state.
 - The full suite and Ruff checks pass at 100% coverage.
+- Added `tests/test_git_adapter.py` covering parser fixtures, Git-only and
+  linked-worktree shapes, selected refs/tags, empty history, shallow history,
+  identity/ref/history/status failures, timeouts, and process errors.
+- `uv run ruff check src/vcs_tree tests` passed.
+- `uv run pytest -q` passed: 90 tests, 100.00% total coverage.
+- Read-only smoke collection of this repository returned a complete identity,
+  zero selected refs, zero history objects, and a complete boundary without
+  changing repository state.
 
 ## Decisions
 - Keep native command execution and normalization behind one adapter boundary.
+- Use explicit user-facing ref namespaces and never `git --all` as the default
+  history boundary in a colocated repository.
+- Use peeled commit IDs as history roots while retaining annotated tag object
+  identity in the ref record.
 
 ## Open Fronts
 - Reflogs, dangling objects, optional deep history, and persistence.
+- jj-native collection remains in `260801-implement-jj-history-adapter`.
 
 ## Next Actions
-- Implement from the exploration fixtures after the model task closes.
+- Claim `260801-implement-jj-history-adapter`; snapshot orchestration can later
+  combine the two native observations for colocated repositories.

@@ -15,8 +15,6 @@
 
 - `260728-movement-snapshot-package` — active; grounded contracts and v1 policy
   defaults are decomposed into the ready implementation queue below.
-- `260801-implement-git-history-adapter` — ready after contract models; collect
-  selected Git refs, workspaces, annotated tags, and reachable history.
 - `260801-implement-jj-history-adapter` — ready after contract models; collect
   jj workspaces, visible heads, bookmarks, conflicts, and null-root history.
 - `260801-collect-history-snapshots` — ready after the ledger and both native
@@ -28,6 +26,9 @@
 
 ## 2. Recent Closures
 
+- `260801-implement-git-history-adapter` — implemented read-only Git identity,
+  worktree, selected-ref, tag, reachable-history, and shallow-boundary
+  collection with 90 tests and 100% coverage; jj adapter remains next.
 - `260801-build-local-history-ledger` — implemented machine-local authoritative
   state, local writer/repository identity, checksummed immutable objects,
   generations, snapshot index, corruption isolation, 75 tests, and the 100%

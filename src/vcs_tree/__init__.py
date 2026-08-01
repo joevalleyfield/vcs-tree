@@ -4,6 +4,7 @@ from vcs_tree.scanner import find_repo_roots, vcs_tree
 
 __all__ = ["find_repo_roots", "vcs_tree"]
 __version__ = "0.1.0"
+from .git_adapter import GitAdapter, GitObservation
 from .ledger import (
     HistoryLedger,
     LedgerCorruptError,
@@ -43,4 +44,5 @@ __all__ = [
     "SnapshotEnvelope", "WriterPolicy", "dumps", "loads",
     "HistoryLedger", "LedgerCorruptError", "LedgerError", "LedgerStatus", "StatePaths",
     "WriterMismatchError", "resolve_paths",
+    "GitAdapter", "GitObservation",
 ]
