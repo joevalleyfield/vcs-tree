@@ -3,7 +3,7 @@ FKA:
 AKA: history model foundation; v1 wire types
 Legacy index:
 
-keywords: tooling, ready, models, contracts, json, validation
+keywords: tooling, closed, models, contracts, json, validation
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260729-draft-history-contracts`; `260801-settle-v1-policy-defaults`
@@ -64,6 +64,12 @@ identifiers, refs, workspaces, history boundaries, snapshots, and events.
   `tasks/WORKBOARD.md` only for lifecycle changes.
 - Do not add subprocess collection, filesystem persistence, CLI commands,
   JSON Schema, or new contract semantics.
+- Implemented `src/vcs_tree/models.py` with frozen primitives for IDs, outcomes,
+  boundaries, store metadata, events, and snapshot/delta envelopes.
+- Exported the public model and deterministic `dumps`/`loads` boundary from
+  `vcs_tree`.
+- Kept nested repository and event payloads contract-shaped mappings for the
+  adapter and delta tasks to refine.
 
 ## Evidence
 - Focused tests cover valid round trips, deterministic output, all enums,
@@ -73,15 +79,26 @@ identifiers, refs, workspaces, history boundaries, snapshots, and events.
 - The full test suite and Ruff checks pass at the repository's 100% coverage
   requirement.
 - Completion records the exact public API and verification commands.
+- Added `tests/test_models.py` covering valid round trips, all enum values,
+  malformed fields, timestamp/schema/version guards, mapping isolation, and
+  null/error distinctions.
+- `uv run ruff check src/vcs_tree tests` passed.
+- `uv run pytest -q` passed: 62 tests, 100.00% total coverage.
+- `uv build --wheel --offline --out-dir /tmp/vcs-tree-model-build` passed.
 
 ## Decisions
 - Keep models independent of collection and storage implementations.
+- Use frozen dataclasses for the stable primitives and immutable tuples for
+  repeated records; preserve arbitrary contract payloads as copied mappings.
+- Require an explicit matching schema when callers provide `kind` to `loads`.
 
 ## Open Fronts
 - External JSON Schema remains outside v1.
 - Ledger-backed invariants remain owned by the ledger and snapshot tasks.
+- Deeper repository, workspace, ref, and event payload types remain owned by
+  the native adapter, snapshot, and delta tasks.
 
 ## Next Actions
-- Implement the smallest public model/codec surface satisfying the contracts.
-- Close this task with tests and API evidence before dependent tasks claim the
-  shared representation.
+- Claim `260801-build-local-history-ledger`, `260801-implement-git-history-adapter`,
+  or `260801-implement-jj-history-adapter` now that the shared model surface is
+  available.
