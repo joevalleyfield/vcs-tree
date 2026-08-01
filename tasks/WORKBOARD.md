@@ -15,8 +15,8 @@
 
 - `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
   snapshots, deltas, and additive CLI are implemented and validated.
-- `260802-feature-behavioral-testing` — ready; prove component-level feature
-  behavior and failure policies across the implemented v1 package.
+- `260802-feature-behavioral-testing` — closed; component-level behavior and
+  failure policies are covered without production changes.
 - `260802-end-to-end-workflow-testing` — ready after feature tests; exercise
   the installed CLI through initialization, snapshots, deltas, and real
   colocated smoke without changing live resources.
@@ -26,6 +26,9 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-feature-behavioral-testing` — added focused contract, ledger,
+  adapter, and delta behavior tests; 124 tests pass with 100% coverage.
 
 - `260801-fix-jj-template-syntax` — corrected quoted NUL separators and current
   jj template methods; real colocated snapshot smoke now observes complete jj

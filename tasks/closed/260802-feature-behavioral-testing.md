@@ -3,7 +3,7 @@ FKA:
 AKA: feature contract test matrix; component behavior coverage
 Legacy index:
 
-keywords: testing, ready, feature, behavior, contracts, adapters, cli
+keywords: testing, closed, feature, behavior, contracts, adapters, cli
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260801-implement-history-contract-models`;
@@ -52,8 +52,14 @@ and additive CLI commands.
 
 ## Completion Evidence
 
-- A concise feature-to-test matrix is recorded in the task evidence.
+- Added `tests/test_feature_behavior.py` with a focused feature matrix:
+  contract round-trip/version rejection; machine-local ledger warnings and
+  corruption isolation; read-only Git/jj command surfaces; and deterministic
+  delta ordering plus partial-absence suppression.
+- Existing focused suites jointly cover ledger writer/generation invariants,
+  native complete/partial/shallow/error/conflict/linked/colocated outcomes,
+  snapshot publication/deduplication, and additive CLI behavior.
 - `uv run pytest -q` passes with the configured 100% coverage gate.
 - `uv run ruff check src/vcs_tree tests` passes.
 - Tests demonstrate read-only behavior for repository adapters and explicit
-  failure outcomes for corrupt/incomplete inputs.
+  failure outcomes for corrupt/incomplete inputs; total suite is 124 tests.
