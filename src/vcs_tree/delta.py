@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -68,6 +69,29 @@ def _ref_key(ref: Mapping[str, Any]) -> str:
         for item in (ref.get("kind", "git"), authority, remote, ref.get("name", ""))
         if item
     )
+
+
+def _repository_location(repo: Mapping[str, Any], scan_root: str | None) -> str | None:
+    locations = repo.get("locations", ())
+    if not isinstance(locations, (list, tuple)) or not locations:
+        return None
+    path = locations[0].get("path") if isinstance(locations[0], Mapping) else None
+    if not isinstance(path, str) or not path:
+        return None
+    if not scan_root:
+        return path
+    try:
+        return str(Path(path).resolve().relative_to(Path(scan_root).resolve())) or "."
+    except ValueError:
+        return path
+
+
+def _scan_root(new: SnapshotEnvelope, old: SnapshotEnvelope) -> str | None:
+    new_root = new.scan.get("root")
+    old_root = old.scan.get("root")
+    if isinstance(new_root, str) and new_root == old_root:
+        return new_root
+    return None
 
 
 def _workspace_key(workspace: Mapping[str, Any]) -> str:
@@ -232,6 +256,8 @@ class HistoryDeltaCalculator:
         keys = sorted(set(left) | set(right))
         result = []
         for key in keys:
+            source = right.get(key, left.get(key, {}))
+            location = _repository_location(source, _scan_root(new, old))
             if key not in left:
                 events = [
                     _event("repository_added", key, {"repository_key": key})
@@ -245,7 +271,14 @@ class HistoryDeltaCalculator:
             else:
                 events = self._compare_repo(left[key], right[key], objects)
             events.sort(key=lambda item: (_ORDER.get(item.event, 99), item.event_key))
-            result.append({"repository_key": key, "events": [item.to_dict() for item in events]})
+            result.append(
+                {
+                    "repository_key": key,
+                    "path": location,
+                    "mode": source.get("mode"),
+                    "events": [item.to_dict() for item in events],
+                }
+            )
         return result
 
     def _compare_repo(

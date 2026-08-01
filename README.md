@@ -124,6 +124,7 @@ vcs-tree history inspect --state-root PATH
 vcs-tree history snapshot --state-root PATH REPOSITORY
 vcs-tree history list --state-root PATH
 vcs-tree history delta --state-root PATH --from SNAPSHOT --to SNAPSHOT
+vcs-tree history delta --state-root PATH --from SNAPSHOT --to SNAPSHOT --format json
 ```
 
 Snapshot collection keeps JSON on stdout and emits concise discovery,
@@ -131,6 +132,12 @@ collection, persistence, and completion status on stderr. `history list` reads
 the authoritative retained-snapshot index and reports deterministic IDs, paths,
 timestamps, generations, outcomes, and store identity; it does not inspect or
 repair disposable renderer cache files.
+
+Delta commands default to a signal-first human summary using repository paths
+relative to the scan root. Use `--all` to include verified no-op repositories,
+`--format json` for the complete canonical document, or `--events-only` for a
+compact machine-readable document containing only repositories with events.
+Local continuity IDs remain available in JSON as secondary metadata.
 
 Authoritative history state, repository keys, and writer enrollment are
 machine-local. The command reports the resolved state, configuration, and

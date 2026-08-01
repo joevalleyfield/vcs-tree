@@ -31,7 +31,7 @@
   aliases, malformed children, and compatibility behavior are covered.
 - `260804-history-observability-and-index` — closed; add stderr progress for
   long scans and a supported retained-snapshot listing.
-- `260805-delta-presentation-surfaces` — ready; formalize scan-relative,
+- `260805-delta-presentation-surfaces` — closed; formalize scan-relative,
   signal-first delta summaries with explicit audit and JSON views.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
@@ -39,6 +39,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260805-delta-presentation-surfaces` — added scan-relative delta identity,
+  signal-first summaries, explicit no-op audit and JSON modes, uncertainty
+  warnings, and 144-test/100%-coverage validation.
 
 - `260804-history-observability-and-index` — added stderr phase progress,
   authoritative deterministic snapshot listing, explicit empty/uninitialized/

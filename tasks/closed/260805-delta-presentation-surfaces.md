@@ -3,7 +3,7 @@ FKA:
 AKA: scan-relative delta view; signal-to-noise output
 Legacy index:
 
-keywords: cli, ready, delta, presentation, scan-relative, identity, json, summary
+keywords: cli, closed, delta, presentation, scan-relative, identity, json, summary
 
 Parent: `260728-movement-snapshot-package`
 Depends on: `260804-history-observability-and-index`; `260801-calculate-history-deltas`
@@ -84,14 +84,17 @@ The CLI also offers explicit complete and audit-oriented views:
 
 ## Completion Evidence
 
-- Focused tests cover default summary, audit no-ops, full JSON, compact JSON,
-  relative-root handling, root mismatch, and incomplete/unknown events.
-- An installed-CLI fixture demonstrates that a noisy multi-repository delta
-  renders as one concise movement report while `--all` recovers the no-ops.
-- Contract examples show path, mode, local identity, certainty, and warning
-  placement.
-- `uv run ruff check src/vcs_tree tests` and `uv run pytest -q` pass with the
-  repository's 100% statement and branch coverage gate.
+- Delta records now carry scan-relative `path` and `mode` metadata alongside
+  the secondary local continuity key, with absolute-path fallback when roots
+  differ or metadata is incomplete.
+- The installed CLI defaults to a signal-first human summary; `--all` exposes
+  verified no-ops, `--format json` preserves the full canonical document, and
+  `--events-only` emits compact JSON with an omitted-no-op count.
+- Focused and black-box tests cover summary rendering, audit no-ops, full and
+  compact JSON, relative-root handling, root mismatch, incomplete/unknown
+  events, and explicit format conflicts.
+- `uv run ruff check src/vcs_tree tests` and `uv run pytest -q` pass with 144
+  tests and 100% statement and branch coverage.
 
 ## Decisions
 
@@ -103,9 +106,8 @@ The CLI also offers explicit complete and audit-oriented views:
 
 ## Open Fronts
 
-- Decide whether the human summary is selected by TTY detection or is always
-  the no-args mode, with `--format json` as the deterministic escape hatch.
-- Decide whether snapshot listing receives the same summary/JSON dual surface.
+- Snapshot listing remains JSON-oriented; a human listing view can be added if
+  operator evidence shows the same signal-to-noise problem.
 
 ## Next Actions
 

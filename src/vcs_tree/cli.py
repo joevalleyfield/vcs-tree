@@ -47,6 +47,11 @@ def _build_history_parser() -> argparse.ArgumentParser:
     delta = history_sub.choices["delta"]
     delta.add_argument("--from", dest="from_snapshot", required=True)
     delta.add_argument("--to", dest="to_snapshot", required=True)
+    delta.add_argument("--format", choices=("summary", "json"), default="summary")
+    delta.add_argument("--all", action="store_true", help="Include verified no-op repositories")
+    delta.add_argument(
+        "--events-only", action="store_true", help="Emit compact JSON for repositories with events"
+    )
     return parser
 
 
@@ -62,6 +67,41 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _print_json(value: object) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
+
+
+def _print_delta_summary(document: dict[str, object], *, include_noops: bool) -> None:
+    entries = document["repository_deltas"]
+    changed = [item for item in entries if item["events"]]
+    noops = len(entries) - len(changed)
+    outcome = document["outcome"]["state"]
+    print(f"delta {document['from_snapshot']} -> {document['to_snapshot']} ({outcome})")
+    for item in entries:
+        events = item["events"]
+        if not events and not include_noops:
+            continue
+        path = item.get("path") or f"[local:{item['repository_key']}]"
+        mode = item.get("mode") or "unknown"
+        if events:
+            print(f"{path} [{mode}]")
+            for event in events:
+                certainty = event.get("certainty", "observed")
+                marker = "?" if certainty == "indeterminate" else "*"
+                details = event.get("details", {})
+                relation = details.get("relation") if isinstance(details, dict) else None
+                suffix = f" (relation: {relation})" if relation else ""
+                print(f"  {marker} {event['event']}{suffix}")
+        else:
+            print(f"{path} [{mode}] — no observed movement")
+    if noops and not include_noops:
+        print(f"{noops} repositories unchanged (use --all to inspect)")
+    unknown = sum(
+        1
+        for item in changed
+        for event in item["events"]
+        if event.get("certainty") == "indeterminate"
+    )
+    if unknown:
+        print(f"{unknown} comparison warning(s) suppress movement conclusions")
 
 
 def _history_main(args: argparse.Namespace) -> int:
@@ -157,7 +197,21 @@ def _history_main(args: argparse.Namespace) -> int:
             _print_json({"status": "error", "error": "snapshot not found"})
             return 2
         delta = HistoryDeltaCalculator(ledger).calculate(before["manifest"], after["manifest"])
-        _print_json(delta.to_dict())
+        if args.events_only and args.format != "summary":
+            raise ValueError("--events-only cannot be combined with --format json")
+        document = delta.to_dict()
+        if args.events_only:
+            entries = document["repository_deltas"]
+            document["repository_deltas"] = [item for item in entries if item["events"]]
+            document["presentation"] = {
+                "mode": "events-only",
+                "omitted_noop_repositories": len(entries) - len(document["repository_deltas"]),
+            }
+            _print_json(document)
+        elif args.format == "json":
+            _print_json(document)
+        else:
+            _print_delta_summary(document, include_noops=args.all)
         return 0 if delta.outcome.state.value == "complete" else 2
     except (LedgerError, ValueError, OSError) as exc:
         _print_json({"status": "error", "error": str(exc)})

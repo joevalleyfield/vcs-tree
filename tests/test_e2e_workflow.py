@@ -90,6 +90,8 @@ def test_installed_cli_git_snapshot_delta_workflow_is_read_only(tmp_path):
     delta = run_cli(
         "history",
         "delta",
+        "--format",
+        "json",
         "--state-root",
         str(state),
         "--from",
@@ -102,6 +104,20 @@ def test_installed_cli_git_snapshot_delta_workflow_is_read_only(tmp_path):
     assert any(event["event"] == "ref_target_changed" for event in events)
     assert run_git(repository, "rev-parse", "HEAD").stdout.strip() != before_head
 
+    summary = run_cli(
+        "history",
+        "delta",
+        "--state-root",
+        str(state),
+        "--from",
+        first_id,
+        "--to",
+        second_id,
+    )
+    assert summary.returncode == 0
+    assert "ref_target_changed" in summary.stdout
+    assert "[git]" in summary.stdout
+
     default_scan = run_cli(str(repository), "--text-symbols")
     assert default_scan.returncode == 0
 
@@ -111,6 +127,8 @@ def test_cli_reports_missing_and_corrupt_state_as_json(tmp_path):
     missing = run_cli(
         "history",
         "delta",
+        "--format",
+        "json",
         "--state-root",
         str(state),
         "--from",
@@ -176,6 +194,8 @@ def test_nested_cli_reports_parent_colocated_child_and_sibling(tmp_path):
     delta = run_cli(
         "history",
         "delta",
+        "--format",
+        "json",
         "--state-root",
         str(state),
         "--from",

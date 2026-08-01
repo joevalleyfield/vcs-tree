@@ -87,7 +87,21 @@ def test_history_delta_missing_snapshot_and_degraded_state(tmp_path, capsys):
     state = tmp_path / "state"
     HistoryLedger.create(state, writer_id="writer")
     assert (
-        cli.main(["history", "delta", "--state-root", str(state), "--from", "a", "--to", "b"]) == 2
+        cli.main(
+            [
+                "history",
+                "delta",
+                "--format",
+                "json",
+                "--state-root",
+                str(state),
+                "--from",
+                "a",
+                "--to",
+                "b",
+            ]
+        )
+        == 2
     )
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "error"
@@ -165,10 +179,162 @@ def test_history_delta_renders_persisted_comparison(tmp_path, monkeypatch, capsy
         )(),
     )
     assert (
-        cli.main(["history", "delta", "--state-root", str(state), "--from", "one", "--to", "two"])
+        cli.main(
+            [
+                "history",
+                "delta",
+                "--format",
+                "json",
+                "--state-root",
+                str(state),
+                "--from",
+                "one",
+                "--to",
+                "two",
+            ]
+        )
         == 0
     )
     assert json.loads(capsys.readouterr().out)["schema"] == "vcs-tree.history-delta"
+
+
+def test_delta_summary_suppresses_and_reveals_noops(capsys):
+    document = {
+        "from_snapshot": "before",
+        "to_snapshot": "after",
+        "outcome": {"state": "partial"},
+        "repository_deltas": [
+            {
+                "repository_key": "repo-1",
+                "path": "project",
+                "mode": "git",
+                "events": [
+                    {
+                        "event": "workspace_head_changed",
+                        "certainty": "observed",
+                        "details": {"relation": "unknown"},
+                    }
+                ],
+            },
+            {"repository_key": "repo-2", "path": "quiet", "mode": "jj", "events": []},
+            {
+                "repository_key": "repo-3",
+                "path": "uncertain",
+                "mode": "git",
+                "events": [
+                    {"event": "comparison_incomplete", "certainty": "indeterminate", "details": {}}
+                ],
+            },
+        ],
+    }
+    cli._print_delta_summary(document, include_noops=False)
+    compact = capsys.readouterr().out
+    assert "project [git]" in compact
+    assert "quiet [jj]" not in compact
+    assert "use --all" in compact
+    assert "comparison warning" in compact
+    cli._print_delta_summary(document, include_noops=True)
+    assert "quiet [jj] — no observed movement" in capsys.readouterr().out
+
+
+def test_history_delta_events_only_json_filters_noops(tmp_path, monkeypatch, capsys):
+    state = tmp_path / "state"
+    ledger = HistoryLedger.create(state, writer_id="writer")
+    ledger.record_snapshot("one", 0, manifest={"snapshot_id": "one"}, writer_id="writer")
+    ledger.record_snapshot("two", 0, manifest={"snapshot_id": "two"}, writer_id="writer")
+
+    class FakeDelta:
+        outcome = type("Outcome", (), {"state": type("State", (), {"value": "complete"})()})()
+
+        def to_dict(self):
+            return {
+                "schema": "vcs-tree.history-delta",
+                "repository_deltas": [
+                    {"repository_key": "one", "events": []},
+                    {"repository_key": "two", "events": [{"event": "changed"}]},
+                ],
+            }
+
+    monkeypatch.setattr(
+        cli,
+        "HistoryDeltaCalculator",
+        lambda ledger: type(
+            "Calculator", (), {"calculate": lambda self, before, after: FakeDelta()}
+        )(),
+    )
+    assert (
+        cli.main(
+            [
+                "history",
+                "delta",
+                "--events-only",
+                "--state-root",
+                str(state),
+                "--from",
+                "one",
+                "--to",
+                "two",
+            ]
+        )
+        == 0
+    )
+    result = json.loads(capsys.readouterr().out)
+    assert len(result["repository_deltas"]) == 1
+    assert result["presentation"]["omitted_noop_repositories"] == 1
+    assert (
+        cli.main(
+            [
+                "history",
+                "delta",
+                "--events-only",
+                "--format",
+                "json",
+                "--state-root",
+                str(state),
+                "--from",
+                "one",
+                "--to",
+                "two",
+            ]
+        )
+        == 2
+    )
+    assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
+def test_history_delta_default_is_human_summary(tmp_path, monkeypatch, capsys):
+    state = tmp_path / "state"
+    ledger = HistoryLedger.create(state, writer_id="writer")
+    ledger.record_snapshot("one", 0, manifest={"snapshot_id": "one"}, writer_id="writer")
+    ledger.record_snapshot("two", 0, manifest={"snapshot_id": "two"}, writer_id="writer")
+
+    class FakeDelta:
+        outcome = type("Outcome", (), {"state": type("State", (), {"value": "complete"})()})()
+
+        def to_dict(self):
+            return {
+                "from_snapshot": "one",
+                "to_snapshot": "two",
+                "outcome": {"state": "complete"},
+                "repository_deltas": [
+                    {"repository_key": "one", "path": "project", "mode": "git", "events": []}
+                ],
+            }
+
+    monkeypatch.setattr(
+        cli,
+        "HistoryDeltaCalculator",
+        lambda ledger: type(
+            "Calculator", (), {"calculate": lambda self, before, after: FakeDelta()}
+        )(),
+    )
+    assert (
+        cli.main(
+            ["history", "delta", "--state-root", str(state), "--from", "one", "--to", "two"]
+        )
+        == 0
+    )
+    assert "repositories unchanged" in capsys.readouterr().out
 
 
 def test_history_command_reports_ledger_errors(monkeypatch, tmp_path, capsys):

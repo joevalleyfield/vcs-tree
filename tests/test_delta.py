@@ -1,4 +1,4 @@
-from vcs_tree.delta import HistoryDeltaCalculator
+from vcs_tree.delta import HistoryDeltaCalculator, _repository_location
 from vcs_tree.models import HistoryStore, SnapshotEnvelope
 
 
@@ -92,6 +92,15 @@ def test_ref_creation_and_fast_forward_are_deterministic():
     ]
     assert events[1]["details"]["movement"] == "fast_forward"
     assert delta.outcome.state.value == "complete"
+
+
+def test_repository_location_is_scan_relative_or_explicitly_absolute():
+    record = {"locations": [{"path": "/tmp/root/project"}]}
+    assert _repository_location(record, "/tmp/root") == "project"
+    assert _repository_location(record, None) == "/tmp/root/project"
+    assert _repository_location(record, "/other/root") == "/tmp/root/project"
+    assert _repository_location({"locations": [{"path": ""}]}, "/tmp/root") is None
+    assert _repository_location({"locations": [{}]}, "/tmp/root") is None
 
 
 def test_partial_refs_suppress_deletion_and_report_incomplete():
