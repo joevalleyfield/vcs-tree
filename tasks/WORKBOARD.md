@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
 > **Status:** Incubation implementation complete; cutover pending
-> **Last Sync:** 2026-08-01
+> **Last Sync:** 2026-08-02
 
 ## 0. Manual Triage
 
@@ -26,7 +26,6 @@
   discovery and nested/colocated snapshot reporting are implemented.
 - `260803-test-nested-repository-features` — closed; nested discovery behavior
   and failure boundaries are covered.
-  validate feature behavior and failure boundaries.
 - `260803-test-nested-repository-e2e` — closed; nested CLI workflows,
   aliases, malformed children, and compatibility behavior are covered.
 - `260804-history-observability-and-index` — closed; add stderr progress for
@@ -35,12 +34,17 @@
   signal-first delta summaries with explicit audit and JSON views.
 - `260806-history-completeness-and-bookmarks` — closed; make delta completeness
   mode-aware and disclose suppressed history movement.
+- `260802-reconcile-workboard` — closed; reconcile task directories and remove
+  stale workboard text.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-reconcile-workboard` — removed stale continuation text, refreshed the
+  sync date, and verified zero open versus 25 closed task artifacts.
 
 - `260806-history-completeness-and-bookmarks` — made delta completeness
   mode-aware for Git refs versus jj bookmarks, surfaced partial/error history
