@@ -17,6 +17,7 @@ from vcs_tree.models import (
     IntegrityState,
     ObjectId,
     Placement,
+    PulseEnvelope,
     RepositoryMode,
     Retention,
     SnapshotEnvelope,
@@ -48,6 +49,45 @@ def delta() -> DeltaEnvelope:
             CollectionState.PARTIAL, (CollectionError("timeout", "git.refs", "late"),)
         ),
         ({"repository_key": "repo-01", "events": []},),
+    )
+
+
+def pulse() -> PulseEnvelope:
+    return PulseEnvelope(
+        "pulse-snapshot-b",
+        "2026-07-29T13:02:00Z",
+        {"root": "/workspace"},
+        {"snapshot_id": "snapshot-b", "generation": 43, "captured_at": "2026-07-29T13:01:00Z"},
+        {
+            "state": "selected",
+            "selection": "automatic",
+            "source_snapshot_id": "snapshot-a",
+            "source_generation": 42,
+        },
+        CollectionOutcome(CollectionState.COMPLETE),
+        {"state": "observed", "repository_count": 1},
+        (
+            {
+                "repository_key": "repo-01",
+                "path": ".",
+                "mode": "git",
+                "events": [],
+                "descriptions": [],
+                "path_evidence": [],
+                "task_path_events": [],
+                "warning_keys": [],
+            },
+        ),
+        (),
+        {
+            "observed_repositories": 1,
+            "movement_repositories": 1,
+            "no_op_repositories": 0,
+            "task_path_events": 0,
+            "new_warnings": 0,
+            "persistent_warnings": 0,
+            "recovered_warnings": 0,
+        },
     )
 
 
@@ -114,6 +154,8 @@ def test_envelopes_have_deterministic_json_and_round_trip():
     assert "\n" in pretty
     assert loads(pretty, kind="delta") == delta_document
     assert loads(dumps(delta_document)) == delta_document
+    pulse_document = pulse()
+    assert loads(dumps(pulse_document), kind="pulse") == pulse_document
 
 
 def test_event_round_trip_and_mapping_copy():
@@ -152,6 +194,8 @@ def test_parsing_and_validation_errors_are_contract_errors():
     with pytest.raises(ContractError):
         loads(dumps(snapshot()), kind="delta")
     with pytest.raises(ContractError):
+        loads(dumps(snapshot()), kind="pulse")
+    with pytest.raises(ContractError):
         loads(dumps(delta()), kind="snapshot")
     with pytest.raises(ContractError):
         loads(dumps(snapshot()), kind="other")
@@ -165,6 +209,31 @@ def test_parsing_and_validation_errors_are_contract_errors():
         SnapshotEnvelope("s", "bad", {}, HistoryStore("s", 0, writer_id="w"), {})
     with pytest.raises(ContractError):
         HistoryStore("s", -1, writer_id="w")
+
+
+def test_pulse_validation_rejects_invalid_state_and_order():
+    document = pulse().to_dict()
+    with pytest.raises(ContractError):
+        PulseEnvelope.from_dict({**document, "comparison": {"state": "bad", "selection": "none"}})
+    with pytest.raises(ContractError):
+        PulseEnvelope.from_dict({**document, "movement": {"state": "bad", "repository_count": 0}})
+    with pytest.raises(ContractError):
+        PulseEnvelope.from_dict(
+            {**document, "comparison": {"state": "selected", "selection": "bad"}}
+        )
+    with pytest.raises(ContractError):
+        PulseEnvelope.from_dict({**document, "warnings": ["bad"]})
+    assert PulseEnvelope.from_dict({**document, "warnings": [{}]}).warnings == ({},)
+    with pytest.raises(ContractError):
+        PulseEnvelope.from_dict(
+            {
+                **document,
+                "repositories": [
+                    document["repositories"][0],
+                    {**document["repositories"][0], "path": ""},
+                ],
+            }
+        )
 
 
 def test_nested_payloads_must_be_json_and_objects():

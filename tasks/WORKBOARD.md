@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Pulse planning active; cutover pending
+> **Status:** Pulse contract settled; implementation queued; cutover pending
 > **Last Sync:** 2026-08-02
 
 ## 0. Manual Triage
@@ -10,18 +10,28 @@
   snapshot/ref/delta contract is grounded in representative repositories.
 - Incubation is successful when the package can later graduate back to
   `Resources/tools/` without consumers depending on the project path.
-- Treat `260802-recurring-movement-pulse` as the active requirements parent for
-  turning snapshots and deltas into factual movement descriptions. The package
-  owns pulse semantics; scheduling remains a host concern.
+- Treat closed `260802-recurring-movement-pulse` and
+  `planning/recurring-pulse-v1.md` as the requirements source for turning
+  snapshots and deltas into factual movement descriptions. The package owns
+  pulse semantics; scheduling remains a host concern.
 - Ground pulse examples in the retained generation-7-to-8 trial, which detected
   the `vcs-tree` head movement but required a separate jj query to recover its
   commit description and task-closure paths.
 
 ## 1. Open Queue
 
-- `260802-recurring-movement-pulse` — active; settle the recurring pulse
-  contract and dispatch bounded implementation tasks for self-describing
-  movement deltas.
+- `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
+  exact comparable-snapshot selection, baseline handling, and orchestration.
+- `260802-enrich-pulse-movement-evidence` — ready; add delta-driven native
+  descriptions and reusable parent-relative changed-path evidence.
+- `260802-classify-pulse-task-warnings` — blocked by orchestration and
+  enrichment; derive factual task-path events and warning lifecycles.
+- `260802-expose-pulse-output-workflow` — blocked by orchestration, enrichment,
+  and semantics; add CLI rendering, exits, and end-to-end evidence.
+- `260802-document-recurring-pulse-adapters` — blocked by the proven public CLI;
+  document thin recurring host invocation and consumption.
+- `260802-recurring-movement-pulse` — closed; settled the v1 operator contract
+  and dispatched five bounded implementation tasks.
 - `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
   snapshots, deltas, and additive CLI are implemented and validated.
 - `260802-feature-behavioral-testing` — closed; component-level behavior and
@@ -53,6 +63,15 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-implement-pulse-orchestration` — added validated pulse envelopes,
+  baseline/automatic/explicit source selection, partial/error preservation,
+  deterministic repository ordering, and 154-test/100%-coverage validation.
+
+- `260802-recurring-movement-pulse` — fixed exact comparison selection,
+  delta-driven enrichment, factual task-path and warning lifecycle semantics,
+  summary/audit/JSON output, exit behavior, grounded examples, and five bounded
+  implementation lanes without changing production code.
 
 - `260802-precommit-checks` — added the repository-local `scripts/check` gate,
   pre-commit policy in AGENTS/README, and complete format/lint/test/build

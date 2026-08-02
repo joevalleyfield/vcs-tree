@@ -363,6 +363,84 @@ class DeltaEnvelope:
 
 
 @dataclass(frozen=True)
+class PulseEnvelope:
+    """Versioned, factual movement pulse assembled from retained observations."""
+
+    pulse_id: str
+    generated_at: str
+    scope: Mapping[str, Any]
+    target_snapshot: Mapping[str, Any]
+    comparison: Mapping[str, Any]
+    outcome: CollectionOutcome
+    movement: Mapping[str, Any]
+    repositories: tuple[Mapping[str, Any], ...] = ()
+    warnings: tuple[Mapping[str, Any], ...] = ()
+    summary: Mapping[str, Any] = field(default_factory=dict)
+    schema: ClassVar[str] = "vcs-tree.history-pulse"
+    schema_version: ClassVar[int] = 1
+
+    def __post_init__(self) -> None:
+        _string(self.pulse_id, "pulse_id")
+        _timestamp(self.generated_at, "generated_at")
+        _object(self.scope, "scope")
+        _object(self.target_snapshot, "target_snapshot")
+        _object(self.comparison, "comparison")
+        _object(self.movement, "movement")
+        _object(self.summary, "summary")
+        if self.comparison.get("state") not in {"selected", "baseline_created"}:
+            raise ContractError("comparison.state must be selected or baseline_created")
+        if self.comparison.get("selection") not in {"automatic", "explicit", "none"}:
+            raise ContractError("comparison.selection is invalid")
+        if self.movement.get("state") not in {"observed", "empty", "unknown", "baseline"}:
+            raise ContractError("movement.state is invalid")
+        for repository in self.repositories:
+            _object(repository, "repository")
+        for warning in self.warnings:
+            _object(warning, "warning")
+        paths = [
+            (str(item.get("path", "")), str(item.get("repository_key", "")))
+            for item in self.repositories
+        ]
+        if paths != sorted(paths):
+            raise ContractError("pulse repositories must be deterministically ordered")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "schema_version": self.schema_version,
+            "pulse_id": self.pulse_id,
+            "generated_at": self.generated_at,
+            "scope": _copy_json(self.scope, "scope"),
+            "target_snapshot": _copy_json(self.target_snapshot, "target_snapshot"),
+            "comparison": _copy_json(self.comparison, "comparison"),
+            "outcome": self.outcome.to_dict(),
+            "movement": _copy_json(self.movement, "movement"),
+            "repositories": _copy_json(list(self.repositories), "repositories"),
+            "warnings": _copy_json(list(self.warnings), "warnings"),
+            "summary": _copy_json(self.summary, "summary"),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> PulseEnvelope:
+        obj = _envelope(value, cls.schema, cls.schema_version)
+        return cls(
+            _string(_required(obj, "pulse_id"), "pulse_id"),
+            _timestamp(_required(obj, "generated_at"), "generated_at"),
+            _object(_required(obj, "scope"), "scope"),
+            _object(_required(obj, "target_snapshot"), "target_snapshot"),
+            _object(_required(obj, "comparison"), "comparison"),
+            CollectionOutcome.from_dict(_required(obj, "outcome")),
+            _object(_required(obj, "movement"), "movement"),
+            tuple(
+                _object(item, "repository")
+                for item in _list(obj.get("repositories", []), "repositories")
+            ),
+            tuple(_object(item, "warning") for item in _list(obj.get("warnings", []), "warnings")),
+            _object(obj.get("summary", {}), "summary"),
+        )
+
+
+@dataclass(frozen=True)
 class Event:
     event: str
     event_key: str
@@ -397,7 +475,7 @@ class Event:
         )
 
 
-T = TypeVar("T", SnapshotEnvelope, DeltaEnvelope)
+T = TypeVar("T", SnapshotEnvelope, DeltaEnvelope, PulseEnvelope)
 
 
 def _envelope(value: Any, schema: str, version: int) -> Mapping[str, Any]:
@@ -409,9 +487,11 @@ def _envelope(value: Any, schema: str, version: int) -> Mapping[str, Any]:
     return obj
 
 
-def dumps(document: SnapshotEnvelope | DeltaEnvelope, *, indent: int | None = None) -> str:
+def dumps(
+    document: SnapshotEnvelope | DeltaEnvelope | PulseEnvelope, *, indent: int | None = None
+) -> str:
     """Serialize a supported envelope deterministically as JSON."""
-    if not isinstance(document, (SnapshotEnvelope, DeltaEnvelope)):
+    if not isinstance(document, (SnapshotEnvelope, DeltaEnvelope, PulseEnvelope)):
         raise ContractError("document must be a SnapshotEnvelope or DeltaEnvelope")
     return json.dumps(
         document.to_dict(),
@@ -428,16 +508,20 @@ def loads(value: str | bytes, *, kind: str | None = None) -> SnapshotEnvelope | 
     except (TypeError, json.JSONDecodeError) as exc:
         raise ContractError("document must be valid JSON") from exc
     schema = _object(document, "document").get("schema")
-    if kind not in {None, "snapshot", "delta"}:
+    if kind not in {None, "snapshot", "delta", "pulse"}:
         raise ContractError(f"unsupported history document kind: {kind!r}")
     if kind == "snapshot" and schema != SnapshotEnvelope.schema:
         raise ContractError("document schema does not match requested kind")
     if kind == "delta" and schema != DeltaEnvelope.schema:
         raise ContractError("document schema does not match requested kind")
+    if kind == "pulse" and schema != PulseEnvelope.schema:
+        raise ContractError("document schema does not match requested kind")
     if schema == SnapshotEnvelope.schema:
         return SnapshotEnvelope.from_dict(document)
     if schema == DeltaEnvelope.schema:
         return DeltaEnvelope.from_dict(document)
+    if schema == PulseEnvelope.schema:
+        return PulseEnvelope.from_dict(document)
     raise ContractError("unsupported history document schema")
 
 
@@ -449,6 +533,7 @@ __all__ = [
     "CollectionState",
     "ContractError",
     "DeltaEnvelope",
+    "PulseEnvelope",
     "Event",
     "HistoryBoundary",
     "HistoryBoundaryState",

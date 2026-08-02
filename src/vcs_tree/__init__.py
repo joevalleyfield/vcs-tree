@@ -31,6 +31,7 @@ from .models import (
     IntegrityState,
     ObjectId,
     Placement,
+    PulseEnvelope,
     RepositoryMode,
     Retention,
     SnapshotEnvelope,
@@ -38,6 +39,7 @@ from .models import (
     dumps,
     loads,
 )
+from .pulse import PulseOrchestrator, PulseSelectionError
 from .snapshot import SnapshotCollector, SnapshotResult, discover_repository_roots
 
 __all__ = [
@@ -54,6 +56,7 @@ __all__ = [
     "HistoryStore",
     "IntegrityState",
     "ObjectId",
+    "PulseEnvelope",
     "Placement",
     "RepositoryMode",
     "Retention",
@@ -77,4 +80,6 @@ __all__ = [
     "discover_repository_roots",
     "DeltaCalculator",
     "HistoryDeltaCalculator",
+    "PulseOrchestrator",
+    "PulseSelectionError",
 ]
