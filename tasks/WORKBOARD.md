@@ -45,12 +45,18 @@
   mode-aware and disclose suppressed history movement.
 - `260802-reconcile-workboard` — closed; reconcile task directories and remove
   stale workboard text.
+- `260802-precommit-checks` — closed; establish the local format/lint/test/build
+  gate required before code commits.
 - `260801-calculate-history-deltas` — closed; deterministic factual comparison
   events and completeness gates are implemented and tested.
 - `260801-integrate-history-cli` — closed; additive history commands expose
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-precommit-checks` — added the repository-local `scripts/check` gate,
+  pre-commit policy in AGENTS/README, and complete format/lint/test/build
+  validation with 146 tests at 100% coverage.
 
 - `260802-reconcile-workboard` — removed stale continuation text, refreshed the
   sync date, and verified zero open versus 25 closed task artifacts.

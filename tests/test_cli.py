@@ -329,9 +329,7 @@ def test_history_delta_default_is_human_summary(tmp_path, monkeypatch, capsys):
         )(),
     )
     assert (
-        cli.main(
-            ["history", "delta", "--state-root", str(state), "--from", "one", "--to", "two"]
-        )
+        cli.main(["history", "delta", "--state-root", str(state), "--from", "one", "--to", "two"])
         == 0
     )
     assert "repositories unchanged" in capsys.readouterr().out

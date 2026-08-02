@@ -120,9 +120,11 @@ def test_jj_bookmarks_are_checked_instead_of_git_refs():
 def test_incomplete_history_is_reported_and_suppresses_history_events():
     a = repo(history_state="complete")
     b = repo(history_state="partial")
-    events = HistoryDeltaCalculator().calculate(
-        snap("s", "a", 1, a), snap("s", "b", 2, b)
-    ).repository_deltas[0]["events"]
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(snap("s", "a", 1, a), snap("s", "b", 2, b))
+        .repository_deltas[0]["events"]
+    )
     assert len(events) == 1
     assert events[0]["event"] == "comparison_incomplete"
     assert events[0]["details"]["component"] == "history"

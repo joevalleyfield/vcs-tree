@@ -56,6 +56,15 @@ uv run ruff format --check .
 uv build
 ```
 
+Before committing code, run the repository-local gate:
+
+```bash
+scripts/check
+```
+
+It runs formatting, linting, the full 100% statement-and-branch coverage
+suite, and the package build in order.
+
 pytest enforces 100% statement and branch coverage for the package. Its
 terminal report hides fully covered files, so any detail row points directly
 to a regression. Ruff checks the extracted package and tests while deliberately

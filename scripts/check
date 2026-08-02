@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$project_root"
+
+# Keep uv's disposable download cache machine-local and outside the repository
+# tree; callers may override this for CI or a shared local cache.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/vcs-tree-uv-cache}"
+
+echo "==> ruff format --check"
+uv run ruff format --check src/vcs_tree tests
+
+echo "==> ruff check"
+uv run ruff check src/vcs_tree tests
+
+echo "==> pytest (100% statement and branch coverage required)"
+uv run pytest -q
+
+echo "==> uv build"
+uv build
+
+echo "All pre-commit checks passed."

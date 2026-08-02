@@ -72,15 +72,21 @@ def resolve_paths(
 ) -> StatePaths:
     """Resolve authoritative, configuration, and disposable cache locations."""
     home = _home()
-    state = Path(state_root) if state_root is not None else _env_path(
-        "XDG_STATE_HOME", home / ".local" / "state"
-    ) / "vcs-tree"
-    config = Path(config_root) if config_root is not None else _env_path(
-        "XDG_CONFIG_HOME", home / ".config"
-    ) / "vcs-tree"
-    cache = Path(cache_root) if cache_root is not None else _env_path(
-        "XDG_CACHE_HOME", home / ".cache"
-    ) / "vcs-tree"
+    state = (
+        Path(state_root)
+        if state_root is not None
+        else _env_path("XDG_STATE_HOME", home / ".local" / "state") / "vcs-tree"
+    )
+    config = (
+        Path(config_root)
+        if config_root is not None
+        else _env_path("XDG_CONFIG_HOME", home / ".config") / "vcs-tree"
+    )
+    cache = (
+        Path(cache_root)
+        if cache_root is not None
+        else _env_path("XDG_CACHE_HOME", home / ".cache") / "vcs-tree"
+    )
     return StatePaths(state, config, cache)
 
 

@@ -51,3 +51,8 @@ and smoke-run the copied script.
 When Python tooling is added, prefer `.codex-local/bin/uvt` over plain `uv`
 for local project commands, consistent with workspace guidance.
 
+Before any code commit, run `scripts/check`. It is the repository-local quality
+gate and must pass Ruff formatting, Ruff lint, the full pytest suite with the
+100% statement-and-branch coverage requirement, and `uv build`. Documentation
+and task-only commits may use narrower checks when no source or test files are
+changed.

@@ -341,9 +341,7 @@ class DeltaEnvelope:
             "to_snapshot": self.to_snapshot,
             "history_store": _copy_json(self.history_store, "history_store"),
             "outcome": self.outcome.to_dict(),
-            "repository_deltas": _copy_json(
-                list(self.repository_deltas), "repository_deltas"
-            ),
+            "repository_deltas": _copy_json(list(self.repository_deltas), "repository_deltas"),
         }
 
     @classmethod
@@ -444,8 +442,24 @@ def loads(value: str | bytes, *, kind: str | None = None) -> SnapshotEnvelope | 
 
 
 __all__ = [
-    "Backend", "Certainty", "CollectionError", "CollectionOutcome", "CollectionState",
-    "ContractError", "DeltaEnvelope", "Event", "HistoryBoundary", "HistoryBoundaryState",
-    "HistoryStore", "IntegrityState", "ObjectId", "Placement", "RepositoryMode", "Retention",
-    "SnapshotEnvelope", "WriterPolicy", "dumps", "loads",
+    "Backend",
+    "Certainty",
+    "CollectionError",
+    "CollectionOutcome",
+    "CollectionState",
+    "ContractError",
+    "DeltaEnvelope",
+    "Event",
+    "HistoryBoundary",
+    "HistoryBoundaryState",
+    "HistoryStore",
+    "IntegrityState",
+    "ObjectId",
+    "Placement",
+    "RepositoryMode",
+    "Retention",
+    "SnapshotEnvelope",
+    "WriterPolicy",
+    "dumps",
+    "loads",
 ]

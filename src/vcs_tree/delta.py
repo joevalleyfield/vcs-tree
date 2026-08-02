@@ -332,9 +332,9 @@ class HistoryDeltaCalculator:
         events.extend(self._workspaces(old, new, objects)) if _complete(
             old, "workspaces"
         ) and _complete(new, "workspaces") else None
-        events.extend(self._refs(old, new, objects)) if _complete(
-            old, ref_component
-        ) and _complete(new, ref_component) else None
+        events.extend(self._refs(old, new, objects)) if _complete(old, ref_component) and _complete(
+            new, ref_component
+        ) else None
         events.extend(self._history(old, new, objects)) if _complete(old, "history") and _complete(
             new, "history"
         ) else None

@@ -136,11 +136,13 @@ def test_colocated_snapshot_merges_native_surfaces_and_deduplicates(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / ".jj").mkdir()
     ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+
     def git(path):
         return type("Factory", (), {"collect": lambda self: git_observation(path)})()
 
     def jj(path):
         return type("Factory", (), {"collect": lambda self: jj_observation(path)})()
+
     collector = SnapshotCollector(
         ledger, git_factory=git, jj_factory=jj, snapshot_id_factory=lambda: "snapshot-colocated"
     )
