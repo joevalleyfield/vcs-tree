@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Incubation implementation complete; cutover pending
+> **Status:** Pulse planning active; cutover pending
 > **Last Sync:** 2026-08-02
 
 ## 0. Manual Triage
@@ -10,9 +10,18 @@
   snapshot/ref/delta contract is grounded in representative repositories.
 - Incubation is successful when the package can later graduate back to
   `Resources/tools/` without consumers depending on the project path.
+- Treat `260802-recurring-movement-pulse` as the active requirements parent for
+  turning snapshots and deltas into factual movement descriptions. The package
+  owns pulse semantics; scheduling remains a host concern.
+- Ground pulse examples in the retained generation-7-to-8 trial, which detected
+  the `vcs-tree` head movement but required a separate jj query to recover its
+  commit description and task-closure paths.
 
 ## 1. Open Queue
 
+- `260802-recurring-movement-pulse` — active; settle the recurring pulse
+  contract and dispatch bounded implementation tasks for self-describing
+  movement deltas.
 - `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
   snapshots, deltas, and additive CLI are implemented and validated.
 - `260802-feature-behavioral-testing` — closed; component-level behavior and
