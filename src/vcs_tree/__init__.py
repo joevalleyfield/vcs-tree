@@ -5,6 +5,7 @@ from vcs_tree.scanner import find_repo_roots, vcs_tree
 __all__ = ["find_repo_roots", "vcs_tree"]
 __version__ = "0.1.0"
 from .delta import DeltaCalculator, HistoryDeltaCalculator
+from .enrichment import EnrichmentResult, PulseEnricher
 from .git_adapter import GitAdapter, GitObservation
 from .jj_adapter import JjAdapter, JjObservation
 from .ledger import (
@@ -82,4 +83,6 @@ __all__ = [
     "HistoryDeltaCalculator",
     "PulseOrchestrator",
     "PulseSelectionError",
+    "EnrichmentResult",
+    "PulseEnricher",
 ]

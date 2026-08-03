@@ -3,7 +3,7 @@ FKA:
 AKA: commit descriptions; changed-path evidence
 Legacy index:
 
-keywords: tooling, ready, pulse, enrichment, git, jj, paths
+keywords: tooling, closed, pulse, enrichment, git, jj, paths
 
 Parent: `260802-recurring-movement-pulse`
 Depends on: `260802-recurring-movement-pulse`
@@ -78,3 +78,16 @@ documentation, the baseline script, or live resource files.
 - Task closure records the exact test count plus example Git and colocated
   description/path records.
 
+Implementation evidence:
+
+- Added `PulseEnricher` and `EnrichmentResult` for deterministic, delta-driven
+  object selection from immutable ledger records.
+- Native commit/change IDs, parents, summaries, jj change IDs, author and
+  committer facts are preserved; virtual roots remain excluded from fabricated
+  descriptions and paths.
+- Parent-relative path evidence is reused from immutable records or supplied
+  through an explicit read-only path loader, with one evidence group per parent.
+- Object/path limits and missing/corrupt objects emit stable partial warnings
+  without mutating source repositories or claiming complete evidence.
+- `scripts/check` passes: Ruff clean, 160 tests with 100% statement and branch
+  coverage, and successful `uv build`.

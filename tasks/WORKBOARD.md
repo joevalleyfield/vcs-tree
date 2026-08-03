@@ -22,7 +22,7 @@
 
 - `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
   exact comparable-snapshot selection, baseline handling, and orchestration.
-- `260802-enrich-pulse-movement-evidence` — ready; add delta-driven native
+- `260802-enrich-pulse-movement-evidence` — closed; add delta-driven native
   descriptions and reusable parent-relative changed-path evidence.
 - `260802-classify-pulse-task-warnings` — blocked by orchestration and
   enrichment; derive factual task-path events and warning lifecycles.
@@ -63,6 +63,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-enrich-pulse-movement-evidence` — added bounded immutable-object
+  enrichment, parent-relative path evidence, virtual-root handling, and stable
+  partial-limit/missing-object warnings; 160 tests pass at 100% coverage.
 
 - `260802-implement-pulse-orchestration` — added validated pulse envelopes,
   baseline/automatic/explicit source selection, partial/error preservation,
