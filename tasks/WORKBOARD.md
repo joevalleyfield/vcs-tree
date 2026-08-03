@@ -32,10 +32,10 @@
   heads, versions, edges, and authority provenance.
 - `260803-calculate-jj-change-deltas` — closed; emit bookmark-independent
   change-version, visibility, and topology movement.
-- `260803-separate-publication-hints` — ready; separate Git refs and jj
+- `260803-separate-publication-hints` — closed; separate Git refs and jj
   bookmarks as non-gating publication annotations.
-- `260803-integrate-change-graph-pulse` — blocked by change and publication
-  deltas; adapt completed pulse layers before public rendering.
+- `260803-integrate-change-graph-pulse` — ready; adapt completed pulse layers
+  before public rendering.
 - `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
   exact comparable-snapshot selection, baseline handling, and orchestration.
 - `260802-enrich-pulse-movement-evidence` — closed; add delta-driven native
@@ -79,6 +79,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-separate-publication-hints` — separated Git refs and jj bookmark
+  provenance/completeness in snapshots and deltas; partial bookmarks cannot
+  hide graph movement; 187 tests pass with 100% coverage.
 
 - `260803-calculate-jj-change-deltas` — added bookmark-independent jj logical
   change/version/topology/visibility and visible-head deltas with partial and

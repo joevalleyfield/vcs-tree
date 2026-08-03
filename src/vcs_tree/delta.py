@@ -130,6 +130,10 @@ _ORDER = {
     "ref_target_changed": 2,
     "ref_conflict_changed": 2,
     "ref_tracking_changed": 2,
+    "bookmark_created": 2,
+    "bookmark_deleted": 2,
+    "bookmark_target_changed": 2,
+    "bookmark_tracking_changed": 2,
     "tag_created": 2,
     "tag_deleted": 2,
     "tag_target_changed": 2,
@@ -292,7 +296,13 @@ class HistoryDeltaCalculator:
         checks = (
             (
                 ref_component,
-                ["ref_created", "ref_deleted", "ref_target_changed"],
+                [
+                    "bookmark_created",
+                    "bookmark_deleted",
+                    "bookmark_target_changed",
+                ]
+                if ref_component == "bookmarks"
+                else ["ref_created", "ref_deleted", "ref_target_changed"],
             ),
             (
                 "workspaces",
@@ -334,9 +344,55 @@ class HistoryDeltaCalculator:
         events.extend(self._workspaces(old, new, objects)) if _complete(
             old, "workspaces"
         ) and _complete(new, "workspaces") else None
-        events.extend(self._refs(old, new, objects)) if _complete(old, ref_component) and _complete(
-            new, ref_component
-        ) else None
+        if _complete(old, ref_component) and _complete(new, ref_component):
+            events.extend(
+                self._refs(
+                    old,
+                    new,
+                    objects,
+                    field=ref_component,
+                    prefix="bookmark" if ref_component == "bookmarks" else "ref",
+                )
+            )
+        if new.get("mode") == "colocated":
+            if not (_complete(old, "refs") and _complete(new, "refs")):
+                events.append(
+                    _event(
+                        "comparison_incomplete",
+                        "git_refs",
+                        {
+                            "component": "git_refs",
+                            "from_state": _state(old, "refs").value,
+                            "to_state": _state(new, "refs").value,
+                            "suppressed_events": [
+                                "ref_created",
+                                "ref_deleted",
+                                "ref_target_changed",
+                            ],
+                        },
+                        certainty=Certainty.INDETERMINATE,
+                    )
+                )
+            if not (_complete(old, "bookmarks") and _complete(new, "bookmarks")):
+                events.append(
+                    _event(
+                        "comparison_incomplete",
+                        "jj_bookmarks",
+                        {
+                            "component": "jj_bookmarks",
+                            "from_state": _state(old, "bookmarks").value,
+                            "to_state": _state(new, "bookmarks").value,
+                            "suppressed_events": [
+                                "bookmark_created",
+                                "bookmark_deleted",
+                                "bookmark_target_changed",
+                            ],
+                        },
+                        certainty=Certainty.INDETERMINATE,
+                    )
+                )
+            else:
+                events.extend(self._refs(old, new, objects, field="bookmarks", prefix="bookmark"))
         events.extend(self._history(old, new, objects)) if _complete(old, "history") and _complete(
             new, "history"
         ) else None
@@ -502,9 +558,12 @@ class HistoryDeltaCalculator:
         old: Mapping[str, Any],
         new: Mapping[str, Any],
         objects: Mapping[str, Mapping[str, Any]],
+        *,
+        field: str = "refs",
+        prefix: str = "ref",
     ) -> list[Event]:
-        left = {_ref_key(item): item for item in old.get("refs", ())}
-        right = {_ref_key(item): item for item in new.get("refs", ())}
+        left = {_ref_key(item): item for item in old.get(field, ())}
+        right = {_ref_key(item): item for item in new.get(field, ())}
         result = []
         uncertain = (
             _boundary(old) is not HistoryBoundaryState.COMPLETE
@@ -512,10 +571,10 @@ class HistoryDeltaCalculator:
         )
         for key in sorted(set(left) | set(right)):
             if key not in left:
-                result.append(_event("ref_created", key, {"ref_key": key, "new": right[key]}))
+                result.append(_event(f"{prefix}_created", key, {"ref_key": key, "new": right[key]}))
                 continue
             if key not in right:
-                result.append(_event("ref_deleted", key, {"ref_key": key, "old": left[key]}))
+                result.append(_event(f"{prefix}_deleted", key, {"ref_key": key, "old": left[key]}))
                 continue
             old_targets, new_targets = (
                 _ids(left[key].get("targets", left[key].get("object_id"))),
@@ -545,7 +604,7 @@ class HistoryDeltaCalculator:
                 )
                 result.append(
                     _event(
-                        "ref_target_changed",
+                        f"{prefix}_target_changed",
                         key,
                         {
                             "ref_key": key,
@@ -565,7 +624,7 @@ class HistoryDeltaCalculator:
             if tracking != tracking_new:  # pragma: no cover
                 result.append(
                     _event(
-                        "ref_tracking_changed",
+                        f"{prefix}_tracking_changed",
                         key,
                         {"ref_key": key, "old": tracking, "new": tracking_new},
                     )

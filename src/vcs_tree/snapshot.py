@@ -130,6 +130,36 @@ def _change_graph(jj: JjObservation | None) -> dict[str, Any] | None:
     }
 
 
+def _publication_hints(git: GitObservation | None, jj: JjObservation | None) -> dict[str, Any]:
+    """Keep Git refs and jj bookmarks as separate provenance-bearing hints."""
+    git_refs = [
+        {**ref, "publication_kind": "git_ref", "publication_hint": True}
+        for ref in (git.refs if git else ())
+    ]
+    bookmarks = []
+    for bookmark in jj.bookmarks if jj else ():
+        bookmarks.append(
+            {
+                **bookmark,
+                "publication_kind": "jj_bookmark",
+                "publication_hint": True,
+                "provenance": "observed_remote" if bookmark.get("remote") else "local",
+            }
+        )
+    return {
+        "git_refs": git_refs,
+        "jj_bookmarks": bookmarks,
+        "outcomes": {
+            "git_refs": git.collection.get("refs", _complete()).to_dict()
+            if git
+            else _complete().to_dict(),
+            "jj_bookmarks": jj.collection.get("bookmarks", _complete()).to_dict()
+            if jj
+            else _complete().to_dict(),
+        },
+    }
+
+
 class SnapshotCollector:
     """Collect one repository observation and publish a durable snapshot."""
 
@@ -278,7 +308,9 @@ class SnapshotCollector:
             "history_boundary": boundary.to_dict(),
             "workspaces": list(workspaces),
             "refs": list(refs),
+            "bookmarks": list(jj_refs),
             "roots": roots,
+            "publication_hints": _publication_hints(git, jj),
             "change_graph": _change_graph(jj),
             "_history_objects": history,
         }

@@ -150,6 +150,10 @@ def test_colocated_snapshot_merges_native_surfaces_and_deduplicates(tmp_path):
     repository = result.envelope.repositories[0]
     assert repository["mode"] == "colocated"
     assert {item.get("authority", "") for item in repository["refs"]} == {"local", ""}
+    hints = repository["publication_hints"]
+    assert hints["git_refs"][0]["publication_kind"] == "git_ref"
+    assert hints["jj_bookmarks"][0]["provenance"] == "observed_remote"
+    assert hints["jj_bookmarks"][0]["publication_hint"] is True
     assert result.generation == 1
     assert len(ledger.read_objects()) == 2
 

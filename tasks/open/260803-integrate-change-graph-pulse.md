@@ -3,12 +3,12 @@ FKA:
 AKA: jj-first pulse integration; change-stack movement brief
 Legacy index:
 
-keywords: tooling, blocked, follow-on, pulse, jj, integration, enrichment, warnings
+keywords: tooling, ready, follow-on, pulse, jj, integration, enrichment, warnings
 
 Parent: `260803-center-pulse-on-jj-change-graphs`
 Depends on: `260803-calculate-jj-change-deltas`; `260803-separate-publication-hints`
 Blocks: `260802-expose-pulse-output-workflow`
-Blocked by: jj change delta and publication-hint separation
+Blocked by:
 Related: `260802-enrich-pulse-movement-evidence`; `260802-classify-pulse-task-warnings`
 
 # Integrate jj Change Graph Movement into Pulse
@@ -62,4 +62,3 @@ base delta semantics, or edit live resource files.
   deterministic counts.
 - Regression evidence covers prior enrichment, task-path, and warning fixtures.
 - Full `scripts/check` success with 100% statement and branch coverage.
-

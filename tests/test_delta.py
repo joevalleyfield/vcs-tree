@@ -141,6 +141,52 @@ def test_jj_bookmarks_are_checked_instead_of_git_refs():
     assert delta.repository_deltas[0]["events"] == []
 
 
+def test_colocated_publication_hints_are_separate_and_partial_bookmarks_do_not_hide_graph():
+    old = repo(
+        refs=({"name": "main", "authority": "local", "object_id": {"value": "g1"}},),
+        change_graph=graph(changes=(), heads=()),
+    )
+    new = repo(
+        refs=({"name": "main", "authority": "local", "object_id": {"value": "g1"}},),
+        change_graph=graph(changes=(change("c1", (version("j1"),)),), heads=()),
+    )
+    for item in (old, new):
+        item["mode"] = "colocated"
+        item["bookmarks"] = [{"name": "topic", "remote": "origin", "targets": [{"value": "j1"}]}]
+        item["collection"]["bookmarks"] = {"state": "complete", "errors": []}
+        item["collection"]["refs"] = {"state": "complete", "errors": []}
+    new["bookmarks"][0]["targets"] = [{"value": "j2"}]
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(snap("s", "a", 1, old), snap("s", "b", 2, new))
+        .repository_deltas[0]["events"]
+    )
+    assert any(event["event"] == "bookmark_target_changed" for event in events)
+    assert any(event["details"].get("state") == "introduced" for event in events)
+    new["collection"]["refs"] = {"state": "partial", "errors": []}
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(snap("s", "a", 1, old), snap("s", "b", 2, new))
+        .repository_deltas[0]["events"]
+    )
+    assert any(
+        event["event"] == "comparison_incomplete" and event["details"]["component"] == "git_refs"
+        for event in events
+    )
+    new["collection"]["bookmarks"] = {"state": "partial", "errors": []}
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(snap("s", "a", 1, old), snap("s", "b", 2, new))
+        .repository_deltas[0]["events"]
+    )
+    assert any(
+        event["event"] == "comparison_incomplete"
+        and event["details"]["component"] == "jj_bookmarks"
+        for event in events
+    )
+    assert any(event["details"].get("state") == "introduced" for event in events)
+
+
 def test_jj_change_graph_event_vocabulary_and_heads():
     old_graph = graph(
         changes=(
