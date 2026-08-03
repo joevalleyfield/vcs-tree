@@ -26,59 +26,24 @@
 
 ## 1. Open Queue
 
-- `260803-center-pulse-on-jj-change-graphs` — closed; correct the contract around
-  logical changes, visible versions, unnamed topology, and publication hints.
-- `260803-persist-jj-change-graph` — closed; retain visible change membership,
-  heads, versions, edges, and authority provenance.
-- `260803-calculate-jj-change-deltas` — closed; emit bookmark-independent
-  change-version, visibility, and topology movement.
-- `260803-separate-publication-hints` — closed; separate Git refs and jj
-  bookmarks as non-gating publication annotations.
-- `260803-integrate-change-graph-pulse` — closed; adapt completed pulse layers
-  before public rendering.
-- `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
-  exact comparable-snapshot selection, baseline handling, and orchestration.
-- `260802-enrich-pulse-movement-evidence` — closed; add delta-driven native
-  descriptions and reusable parent-relative changed-path evidence.
-- `260802-classify-pulse-task-warnings` — closed; derive factual task-path
-  events and warning lifecycles.
-- `260802-expose-pulse-output-workflow` — closed; add CLI rendering, exits, and
-  end-to-end evidence.
-- `260802-document-recurring-pulse-adapters` — ready; document thin recurring
-  host invocation and consumption.
-- `260802-recurring-movement-pulse` — closed; settled the v1 operator contract
-  and dispatched five bounded implementation tasks.
-- `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
-  snapshots, deltas, and additive CLI are implemented and validated.
-- `260802-feature-behavioral-testing` — closed; component-level behavior and
-  failure policies are covered without production changes.
-- `260802-end-to-end-workflow-testing` — closed; installed CLI workflows,
-  controlled Git/colocated fixtures, error paths, and compatibility behavior
-  are covered.
-- `260803-define-nested-repository-semantics` — closed; recursive discovery,
-  ownership, deduplication, and boundary rules are documented for coding.
-- `260803-restore-nested-repository-reporting` — closed; recursive history
-  discovery and nested/colocated snapshot reporting are implemented.
-- `260803-test-nested-repository-features` — closed; nested discovery behavior
-  and failure boundaries are covered.
-- `260803-test-nested-repository-e2e` — closed; nested CLI workflows,
-  aliases, malformed children, and compatibility behavior are covered.
-- `260804-history-observability-and-index` — closed; add stderr progress for
-  long scans and a supported retained-snapshot listing.
-- `260805-delta-presentation-surfaces` — closed; formalize scan-relative,
-  signal-first delta summaries with explicit audit and JSON views.
-- `260806-history-completeness-and-bookmarks` — closed; make delta completeness
-  mode-aware and disclose suppressed history movement.
-- `260802-reconcile-workboard` — closed; reconcile task directories and remove
-  stale workboard text.
-- `260802-precommit-checks` — closed; establish the local format/lint/test/build
-  gate required before code commits.
-- `260801-calculate-history-deltas` — closed; deterministic factual comparison
-  events and completeness gates are implemented and tested.
-- `260801-integrate-history-cli` — closed; additive history commands expose
-  operator workflows and keep authoritative state out of disposable cache.
+<!-- WORKBOARD:OPEN:START -->
+- `260802-document-recurring-pulse-adapters` — Document how a host invokes and consumes the proven pulse CLI without moving selection, warning, task-path, or assessment semantics outside the package.
+<!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
+
+<!-- WORKBOARD:CLOSED:START -->
+- `260806-history-completeness-and-bookmarks` — Make incomplete-history reports explainable and mode-aware so downstream dispatchers can distinguish tool gaps from repository movement.
+- `260805-delta-presentation-surfaces` — Separate operator-facing movement summaries from complete machine-readable delta documents while retaining an auditable way to inspect verified no-ops.
+- `260804-history-observability-and-index` — Make long-running history scans observable and expose a supported operator listing of retained snapshots.
+- `260803-test-nested-repository-features` — Add focused behavioral tests for nested repository discovery, ownership, deduplication, boundaries, and deterministic reporting.
+- `260803-test-nested-repository-e2e` — Exercise nested Git/jj discovery through the installed CLI and confirm the operator-visible output and persisted snapshots match the feature contract.
+- `260803-sync-workboard` — Adapt the proven task-inventory synchronizer from `../toas` so this repository's Open Queue is generated from `tasks/open/`, while recent closures and the relationship view remain ...
+- `260803-separate-publication-hints` — Represented Git refs and jj bookmarks as distinct publication-related authorities that annotate, but never define, jj change movement.
+- `260803-restore-nested-repository-reporting` — Extend the package history workflow to discover and report all eligible nested Git/jj repositories according to the approved discovery semantics.
+<!-- WORKBOARD:CLOSED:END -->
+
+### Curated closure evidence
 
 - `260802-expose-pulse-output-workflow` — added the public pulse CLI, stable
   summary/audit/JSON surfaces, exit behavior, and workflow coverage; 196 tests

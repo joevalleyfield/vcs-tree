@@ -54,3 +54,10 @@ Include one lifecycle keyword:
 - Add decisions and verification evidence before closing.
 - Update `tasks/WORKBOARD.md` whenever queue membership or disposition changes.
 
+## Synchronization
+
+Run `scripts/sync-workboard` after adding, closing, or renaming a task. The
+generated Open Queue is sourced only from `tasks/open/`; recent closures are
+generated from `tasks/closed/`. Use `scripts/sync-workboard --check` in review
+or automation to detect drift without writing. Content outside the marked
+sections remains manually maintained.
