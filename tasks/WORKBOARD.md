@@ -24,8 +24,8 @@
   exact comparable-snapshot selection, baseline handling, and orchestration.
 - `260802-enrich-pulse-movement-evidence` — closed; add delta-driven native
   descriptions and reusable parent-relative changed-path evidence.
-- `260802-classify-pulse-task-warnings` — blocked by orchestration and
-  enrichment; derive factual task-path events and warning lifecycles.
+- `260802-classify-pulse-task-warnings` — closed; derive factual task-path
+  events and warning lifecycles.
 - `260802-expose-pulse-output-workflow` — blocked by orchestration, enrichment,
   and semantics; add CLI rendering, exits, and end-to-end evidence.
 - `260802-document-recurring-pulse-adapters` — blocked by the proven public CLI;
@@ -63,6 +63,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-classify-pulse-task-warnings` — added deterministic task-path event
+  classification and stable warning lifecycle semantics; 176 tests pass with
+  100% statement and branch coverage.
 
 - `260802-enrich-pulse-movement-evidence` — added bounded immutable-object
   enrichment, parent-relative path evidence, virtual-root handling, and stable
