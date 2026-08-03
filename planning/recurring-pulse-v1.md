@@ -1,6 +1,6 @@
 # Recurring Movement Pulse v1
 
-Status: accepted for implementation
+Status: accepted for implementation; jj change-graph correction applied
 
 Schema identifier: `vcs-tree.history-pulse`
 
@@ -66,7 +66,8 @@ The command performs these steps in order:
 2. Read the retained-snapshot index and preflight an explicit `--from`, if any.
 3. Capture and retain a new target snapshot using the existing collector.
 4. Select the source snapshot from the pre-capture candidate set.
-5. Calculate the existing v1 history delta.
+5. Calculate the v1 history delta, with jj logical-change graph movement as
+   the primary jj surface and refs/bookmarks as separate publication hints.
 6. Resolve descriptions and path evidence only for movement-relevant objects.
 7. Derive factual task-path events and warning lifecycles.
 8. Render one pulse document as summary, audit, or JSON.
@@ -135,8 +136,10 @@ For each candidate object, the pulse exposes available immutable ledger facts:
 - complete parent-relative changed paths when collected.
 
 Git and jj/colocated repositories share this public description shape. A jj
-change with multiple visible commit versions retains every commit ID; it is not
-collapsed to one description. The jj null root remains `virtual_root` with ID
+logical change is identified by `change_id`, but every visible commit version
+retains its own ID, parents, visibility, and exposing authorities; it is not
+collapsed to one description or synthetic stack. Unnamed topology is carried
+by parent edges, visible heads, and workspace heads. The jj null root remains `virtual_root` with ID
 `00000000` and has no fabricated author, committer, description, or date.
 
 Descriptions already present in immutable ledger objects SHOULD be reused.
@@ -380,6 +383,40 @@ no comparable prior snapshot; no movement comparison was made
 - An explicit comparison mismatch is operational failure, never an automatic
   fallback.
 
+## jj-First Movement Contract
+
+For jj and colocated repositories, `change_versions_changed`, visible-head,
+workspace-head, and parent-topology events are primary movement facts. They do
+not require a bookmark. Git refs and jj bookmarks are optional publication
+hints with separate authority provenance; bookmark incompleteness can suppress
+only publication absence/target claims. Positive graph movement supported by
+valid records remains observable under partial bookmark collection.
+
+The retained generation-7-to-8 example remains valid for Git/task-path
+evidence. A bookmark-free jj example is normative: an unnamed stack grows,
+one logical change is rewritten, a rebase changes a parent edge, and a sibling
+stack gains a visible head. Each change/version/topology/head fact remains
+describable without inventing a stack name.
+
+Before/after graph fixture (no bookmarks):
+
+```text
+before: change C1 -> version v1, parent null-root; visible head v1
+after:  change C1 -> version v2, parent v0; visible head v2
+        change C2 -> version w1, parent v2; visible head w1
+delta:  C1 rewritten + topology_changed; C2 introduced;
+        visible_head_added(v2), visible_head_added(w1)
+```
+
+Colocated publication-hint fixture:
+
+```text
+before: C1/v1 visible; local bookmark topic -> v1; remote bookmark absent
+after:  C1/v2 visible; local bookmark topic -> v2; remote bookmark malformed
+delta:  C1 rewritten and visible-head movement remain observed;
+        remote bookmark absence/target is comparison_incomplete only
+```
+
 ## Compatibility and Non-Goals
 
 Pulse v1 consumes history snapshot v1 and history delta v1. It does not change
@@ -397,7 +434,7 @@ Pulse v1 does not:
 
 ## Implementation Dispatch
 
-The implementation is split into five tasks:
+The implementation is split into the following ordered tasks:
 
 1. `260802-implement-pulse-orchestration` — pulse envelope, preflight,
    comparable-snapshot selection, and orchestration.
@@ -405,10 +442,13 @@ The implementation is split into five tasks:
    parent-relative changed-path evidence across Git and jj/colocated modes.
 3. `260802-classify-pulse-task-warnings` — task-path derivation and stable
    warning lifecycle classification.
-4. `260802-expose-pulse-output-workflow` — CLI, summary/audit/JSON rendering,
-   exit behavior, and end-to-end evidence.
-5. `260802-document-recurring-pulse-adapters` — thin host invocation and
+4. `260803-integrate-change-graph-pulse` — adapt pulse enrichment and warning
+   semantics to consume the jj-first delta.
+5. `260802-expose-pulse-output-workflow` — CLI, summary/audit/JSON rendering,
+   exit behavior, and end-to-end evidence after change-graph integration.
+6. `260802-document-recurring-pulse-adapters` — thin host invocation and
    consumption guidance after the CLI is proven.
 
-The first two tasks are independently ready. The remaining tasks have explicit
+The contract correction is complete. `260803-persist-jj-change-graph` is now
+the next ready implementation slice; subsequent tasks retain explicit
 dependencies and non-overlapping primary write surfaces.

@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** jj change-graph correction queued; public pulse CLI blocked; cutover pending
+> **Status:** jj change-graph contract corrected; persistence ready; public pulse CLI blocked; cutover pending
 > **Last Sync:** 2026-08-03
 
 ## 0. Manual Triage
@@ -17,19 +17,19 @@
 - Ground pulse examples in the retained generation-7-to-8 trial, which detected
   the `vcs-tree` head movement but required a separate jj query to recover its
   commit description and task-closure paths.
-- Treat `260803-center-pulse-on-jj-change-graphs` as a requirements correction
-  before public pulse output. Unnamed jj logical-change graphs are primary
-  movement; bookmarks are optional publication hints.
+- Treat the closed `260803-center-pulse-on-jj-change-graphs` correction as the
+  requirements source before public pulse output. Unnamed jj logical-change
+  graphs are primary movement; bookmarks are optional publication hints.
 - Preserve the completed orchestration, enrichment, and task/warning layers,
   but do not expose or document the public pulse until change-graph integration
   proves bookmark-free jj movement end to end.
 
 ## 1. Open Queue
 
-- `260803-center-pulse-on-jj-change-graphs` — active; correct the contract around
+- `260803-center-pulse-on-jj-change-graphs` — closed; correct the contract around
   logical changes, visible versions, unnamed topology, and publication hints.
-- `260803-persist-jj-change-graph` — blocked by the revised contract; retain
-  visible change membership, heads, versions, edges, and authority provenance.
+- `260803-persist-jj-change-graph` — ready; retain visible change membership,
+  heads, versions, edges, and authority provenance.
 - `260803-calculate-jj-change-deltas` — blocked by persisted observations; emit
   bookmark-independent change-version, visibility, and topology movement.
 - `260803-separate-publication-hints` — blocked by the change delta; separate
@@ -79,6 +79,11 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-center-pulse-on-jj-change-graphs` — made the jj logical-change graph
+  the normative primary movement surface, separated publication hints, and
+  added bookmark-free/colocated contract fixtures. Documentation-only change;
+  no production or retained-state files changed.
 
 - `260802-classify-pulse-task-warnings` — added deterministic task-path event
   classification and stable warning lifecycle semantics; 176 tests pass with

@@ -1,6 +1,6 @@
 # History Delta Contract v1
 
-Status: draft for implementation review
+Status: accepted for implementation review; jj change-graph correction applied
 
 Schema identifier: `vcs-tree.history-delta`
 
@@ -368,10 +368,45 @@ Groups visible commit versions by jj change ID:
 
 Graph relations MUST still use commit IDs.
 
+This event is the primary jj movement event. It MUST be emitted when the
+before/after visible-version sets for a `change_id` differ, whether or not any
+bookmark names the change. Every old and new visible commit ID is retained.
+Valid observed version movement remains `observed` when an unrelated bookmark
+component is partial or errored.
+
+The state vocabulary is:
+
+| State | Required evidence | Absence gate |
+| --- | --- | --- |
+| `introduced` | target has a valid logical change/version absent from source | none for positive observation |
+| `rewritten` | same `change_id`, one or more old versions replaced by new versions | graph complete for loss claims |
+| `divergent` | target has multiple visible versions for one `change_id` | none for positive observation |
+| `topology_changed` | parent change is observed for a retained version | parent edges available |
+| `resolved` | target visible set becomes one after prior divergence | graph complete for prior set |
+| `visibility_gained` | a known version becomes visible | graph complete for source absence |
+| `visibility_lost` | a prior visible version is no longer visible | graph complete in both snapshots |
+
+`hidden` and deletion-like claims MUST NOT be emitted from a partial graph;
+they become `indeterminate` with `comparison_incomplete` evidence instead. The
+jj null root is a graph boundary, never an ordinary logical-change event.
+
 ### `visible_head_added` and `visible_head_removed`
 
 Report jj visible-head set movement separately from bookmark movement.
 Unbookmarked work MUST remain observable through these events.
+
+Visible-head and workspace-head movement are independent topology facts. They
+identify affected commit IDs and, when available, logical change IDs. Neither
+requires a bookmark or is suppressed by bookmark incompleteness.
+
+### Publication-hint events
+
+Git refs and jj bookmarks remain separate event families. Bookmark events carry
+authority provenance and may report local intent, tracked state, or observed
+remote targets, but MUST NOT claim publication or server freshness. Partial
+bookmark collection may suppress bookmark absence/target claims while leaving
+change-version, topology, visible-head, workspace-head, description, and path
+events intact.
 
 ## Tag Events
 
@@ -515,6 +550,9 @@ but a passive scan says only that remote-tracking history became observable.
 3. First-observed time and commit author/committer time remain distinct.
 4. Ref movement classification is based on target sets and graph ancestry.
 5. jj logical-change events never replace commit IDs in graph events.
+12. jj logical-change and topology events do not require bookmark presence.
+13. Publication-hint uncertainty cannot downgrade independently supported
+    change-graph movement.
 6. Reachability loss never deletes immutable ledger records.
 7. Off-current means outside all observed target workspace-head closures.
 8. Event vocabulary remains factual and does not encode project health.

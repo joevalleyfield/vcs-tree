@@ -3,12 +3,12 @@ FKA:
 AKA: visible jj graph snapshots; unnamed stack observations
 Legacy index:
 
-keywords: tooling, blocked, follow-on, jj, changes, visibility, snapshots
+keywords: tooling, ready, follow-on, jj, changes, visibility, snapshots
 
 Parent: `260803-center-pulse-on-jj-change-graphs`
 Depends on: `260803-center-pulse-on-jj-change-graphs`
 Blocks: `260803-calculate-jj-change-deltas`
-Blocked by: revised jj change-graph contract
+Blocked by:
 Related: `260801-implement-jj-history-adapter`; `260801-collect-history-snapshots`
 
 # Persist the Visible jj Change Graph
@@ -67,4 +67,3 @@ live resource cutover behavior.
   authority distinctions.
 - Failure tests prove record-local preservation and explicit partial outcomes.
 - Full `scripts/check` success with 100% statement and branch coverage.
-

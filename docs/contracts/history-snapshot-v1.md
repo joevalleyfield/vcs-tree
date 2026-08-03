@@ -1,6 +1,6 @@
 # History Snapshot Contract v1
 
-Status: draft for implementation review
+Status: accepted for implementation review; jj change-graph correction applied
 
 Schema identifier: `vcs-tree.history-snapshot`
 
@@ -476,6 +476,20 @@ The jj null root MUST be represented as:
 The virtual root, an unborn repository, and a repository-read error MUST remain
 distinct.
 
+### jj logical-change graph
+
+For `mode: "jj"` and `mode: "colocated"`, the snapshot MUST retain the
+observed logical-change graph independently of named bookmarks. Each observed
+jj commit version contributes its full commit ID and stable `change_id`,
+ordered parent commit IDs (and parent change IDs when available), visibility
+(`visible`, `hidden`, or `unknown`), and every authority that exposed it.
+
+The graph MUST preserve every visible version for a logical change. It MUST
+NOT select one preferred commit, collapse divergent versions, or invent a
+named stack identity. Unnamed topology is represented by parent edges, visible
+heads, and workspace heads. An unavailable bookmark MUST NOT erase valid graph
+observations; graph absence claims require a complete graph boundary.
+
 ### Annotated tag object
 
 ```json
@@ -633,9 +647,14 @@ credentials, or unredacted remote URLs.
 In colocated mode:
 
 - jj is authoritative for workspaces, current working copies, visible heads,
-  change IDs, and jj bookmark state;
+  change IDs, commit versions, parent topology, and jj bookmark state;
 - explicit Git user ref namespaces MAY supply compatibility evidence;
 - internal Git implementation refs MUST NOT become user refs or history roots.
+
+Git refs and jj bookmarks are separate authorities. A bookmark is a publication
+hint with provenance (`local`, `tracked`, or `observed_remote`), not proof of
+publication, fetching, or server freshness. Bookmark completeness governs only
+bookmark creation/deletion/target absence claims.
 
 ## Determinism
 
