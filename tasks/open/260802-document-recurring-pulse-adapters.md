@@ -3,12 +3,12 @@ FKA:
 AKA: scheduled pulse guide; host consumers
 Legacy index:
 
-keywords: docs, blocked, pulse, automation, scheduling, adapters
+keywords: docs, ready, pulse, automation, scheduling, adapters
 
 Parent: `260802-recurring-movement-pulse`
 Depends on: `260802-expose-pulse-output-workflow`
 Blocks:
-Blocked by: public pulse CLI and end-to-end evidence
+Blocked by:
 Related:
 
 # Document Thin Recurring Pulse Adapters

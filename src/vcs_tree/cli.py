@@ -9,7 +9,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from vcs_tree.delta import HistoryDeltaCalculator
+from vcs_tree.enrichment import PulseEnricher
 from vcs_tree.ledger import HistoryLedger, LedgerError, resolve_paths
+from vcs_tree.pulse import PulseOrchestrator, PulseSelectionError
+from vcs_tree.pulse_render import render
 from vcs_tree.scanner import vcs_tree
 from vcs_tree.snapshot import SnapshotCollector
 
@@ -39,6 +42,7 @@ def _build_history_parser() -> argparse.ArgumentParser:
         ("snapshot", "Collect and persist a repository snapshot"),
         ("delta", "Compare two persisted snapshots"),
         ("list", "List retained snapshots"),
+        ("pulse", "Capture and compare a movement pulse"),
     ):
         sub = history_sub.add_parser(name, help=help_text)
         sub.add_argument("--state-root", help="Authoritative state directory")
@@ -52,6 +56,12 @@ def _build_history_parser() -> argparse.ArgumentParser:
     delta.add_argument(
         "--events-only", action="store_true", help="Emit compact JSON for repositories with events"
     )
+    pulse = history_sub.choices["pulse"]
+    pulse.add_argument("path", nargs="?", default=".")
+    pulse.add_argument("--from", dest="from_snapshot")
+    pulse.add_argument("--format", choices=("summary", "audit", "json"), default="summary")
+    pulse.add_argument("--max-enrichment-objects", type=int, default=256)
+    pulse.add_argument("--max-changed-paths", type=int, default=10_000)
     return parser
 
 
@@ -188,6 +198,27 @@ def _history_main(args: argparse.Namespace) -> int:
         return 0
     try:
         ledger = HistoryLedger.open(state_root)
+        if args.history_command == "pulse":
+
+            def collector_factory(store):
+                return SnapshotCollector(
+                    store,
+                    progress=lambda message: print(f"[vcs-tree] {message}", file=sys.stderr),
+                )
+
+            orchestrator = PulseOrchestrator(
+                ledger,
+                collector_factory=collector_factory,
+                enricher_factory=lambda store: PulseEnricher(
+                    store,
+                    max_objects=args.max_enrichment_objects,
+                    max_paths=args.max_changed_paths,
+                ),
+            )
+            document = orchestrator.run(Path(args.path), from_snapshot=args.from_snapshot).to_dict()
+            print(render(document, args.format))
+            state = document["outcome"]["state"]
+            return 4 if state == "error" else 3 if state == "partial" else 0
         if args.history_command == "snapshot":
             result = SnapshotCollector(
                 ledger,
@@ -219,6 +250,6 @@ def _history_main(args: argparse.Namespace) -> int:
         else:
             _print_delta_summary(document, include_noops=args.all)
         return 0 if delta.outcome.state.value == "complete" else 2
-    except (LedgerError, ValueError, OSError) as exc:
+    except (LedgerError, PulseSelectionError, ValueError, OSError) as exc:
         _print_json({"status": "error", "error": str(exc)})
-        return 2
+        return 4 if isinstance(exc, PulseSelectionError) else 2

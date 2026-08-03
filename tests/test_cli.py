@@ -302,6 +302,64 @@ def test_history_delta_events_only_json_filters_noops(tmp_path, monkeypatch, cap
     assert json.loads(capsys.readouterr().out)["status"] == "error"
 
 
+def test_history_pulse_formats_and_exit_mapping(tmp_path, monkeypatch, capsys):
+    state = tmp_path / "state"
+    HistoryLedger.create(state, writer_id="writer")
+
+    class FakePulse:
+        def __init__(self, state):
+            self.state = state
+
+        def to_dict(self):
+            return {
+                "schema": "vcs-tree.history-pulse",
+                "schema_version": 1,
+                "pulse_id": "pulse",
+                "generated_at": "2026-08-03T00:00:00Z",
+                "scope": {"root": "/workspace"},
+                "target_snapshot": {"generation": 2},
+                "comparison": {"state": "selected", "source_generation": 1},
+                "outcome": {"state": self.state, "errors": []},
+                "movement": {"state": "observed" if self.state != "error" else "unknown"},
+                "repositories": [],
+                "warnings": [],
+                "summary": {"new_warnings": 0, "persistent_warnings": 0, "recovered_warnings": 0},
+            }
+
+    def fake_orchestrator(ledger, **kwargs):
+        kwargs["collector_factory"](ledger)
+        return type(
+            "Orchestrator", (), {"run": lambda self, path, from_snapshot=None: FakePulse("partial")}
+        )()
+
+    monkeypatch.setattr(cli, "PulseOrchestrator", fake_orchestrator)
+    assert cli.main(["history", "pulse", "--state-root", str(state), "--format", "json"]) == 3
+    assert json.loads(capsys.readouterr().out)["schema"] == "vcs-tree.history-pulse"
+
+
+def test_history_pulse_help_and_selection_error(tmp_path, monkeypatch, capsys):
+    with pytest.raises(SystemExit, match="0"):
+        cli.main(["history", "pulse", "--help"])
+    assert "max-enrichment-objects" in capsys.readouterr().out
+    state = tmp_path / "state"
+    HistoryLedger.create(state, writer_id="writer")
+    monkeypatch.setattr(
+        cli,
+        "PulseOrchestrator",
+        lambda ledger, **kwargs: type(
+            "Orchestrator",
+            (),
+            {
+                "run": lambda self, path, from_snapshot=None: (_ for _ in ()).throw(
+                    cli.PulseSelectionError("scope_mismatch")
+                )
+            },
+        )(),
+    )
+    assert cli.main(["history", "pulse", "--state-root", str(state)]) == 4
+    assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
 def test_history_delta_default_is_human_summary(tmp_path, monkeypatch, capsys):
     state = tmp_path / "state"
     ledger = HistoryLedger.create(state, writer_id="writer")

@@ -42,10 +42,10 @@
   descriptions and reusable parent-relative changed-path evidence.
 - `260802-classify-pulse-task-warnings` — closed; derive factual task-path
   events and warning lifecycles.
-- `260802-expose-pulse-output-workflow` — ready; add CLI rendering, exits, and
+- `260802-expose-pulse-output-workflow` — closed; add CLI rendering, exits, and
   end-to-end evidence.
-- `260802-document-recurring-pulse-adapters` — blocked by the proven public CLI;
-  document thin recurring host invocation and consumption.
+- `260802-document-recurring-pulse-adapters` — ready; document thin recurring
+  host invocation and consumption.
 - `260802-recurring-movement-pulse` — closed; settled the v1 operator contract
   and dispatched five bounded implementation tasks.
 - `260728-movement-snapshot-package` — closed; v1 package, ledger, adapters,
@@ -79,6 +79,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260802-expose-pulse-output-workflow` — added the public pulse CLI, stable
+  summary/audit/JSON surfaces, exit behavior, and workflow coverage; 196 tests
+  pass with 100% coverage.
 
 - `260803-integrate-change-graph-pulse` — wired jj-first graph deltas through
   enrichment, task-path events, warning lifecycles, and pulse movement states;
