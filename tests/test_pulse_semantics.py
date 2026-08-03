@@ -79,6 +79,32 @@ def test_task_path_alias_and_deterministic_order():
     assert [item["commit_id"] for item in result] == ["a", "b"]
 
 
+def test_merge_parent_groups_and_direct_closed_addition_remain_factual():
+    result = classify_task_paths(
+        (
+            {
+                "object_id": "merge",
+                "parent_id": "left",
+                "state": "complete",
+                "paths": [{"status": "modified", "path": "tasks/open/parent.md"}],
+            },
+            {
+                "object_id": "merge",
+                "parent_id": "right",
+                "state": "partial",
+                "paths": [{"status": "added", "path": "tasks/closed/reconciled.md"}],
+            },
+        )
+    )
+    assert [(item["parent_id"], item["event"]) for item in result] == [
+        ("left", "task_path_modified"),
+        ("right", "task_path_added"),
+    ]
+    closed_add = result[1]
+    assert closed_add["from_area"] == "outside"
+    assert closed_add["to_area"] == "closed"
+
+
 def test_warning_identity_uses_contract_fields_only():
     warning = {
         "repository_key": "repo",
