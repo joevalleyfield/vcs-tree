@@ -6,9 +6,9 @@ Legacy index:
 keywords: cli, blocked, pulse, json, rendering, e2e, exits
 
 Parent: `260802-recurring-movement-pulse`
-Depends on: `260802-implement-pulse-orchestration`; `260802-enrich-pulse-movement-evidence`; `260802-classify-pulse-task-warnings`
+Depends on: `260802-implement-pulse-orchestration`; `260802-enrich-pulse-movement-evidence`; `260802-classify-pulse-task-warnings`; `260803-integrate-change-graph-pulse`
 Blocks: `260802-document-recurring-pulse-adapters`
-Blocked by: orchestration, enrichment, and pulse semantics
+Blocked by: jj change-graph pulse integration
 Related: `260805-delta-presentation-surfaces`
 
 # Expose and Validate the Pulse Output Workflow
@@ -53,6 +53,8 @@ adapters, the baseline script, or live resource files.
 
 - Installed-CLI temporary state with controlled Git-only and colocated
   repositories for baseline, movement, empty, and partial pulses.
+- A bookmark-free jj-only repository with unnamed stack growth, rewrite, and
+  rebase movement plus a partial publication-hint case.
 - The generation-7-to-8 shape with commit `aea6409b`, summary
   `chore: reconcile task workboard`, a workboard modification, and a direct
   closed-task-path addition.
@@ -69,4 +71,3 @@ adapters, the baseline script, or live resource files.
   `4`.
 - Full `scripts/check` success with 100% statement and branch coverage.
 - Task closure records the exact test count and source-immutability evidence.
-

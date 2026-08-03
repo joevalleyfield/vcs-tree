@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
-> **Status:** Pulse contract settled; implementation queued; cutover pending
-> **Last Sync:** 2026-08-02
+> **Status:** jj change-graph correction queued; public pulse CLI blocked; cutover pending
+> **Last Sync:** 2026-08-03
 
 ## 0. Manual Triage
 
@@ -17,17 +17,33 @@
 - Ground pulse examples in the retained generation-7-to-8 trial, which detected
   the `vcs-tree` head movement but required a separate jj query to recover its
   commit description and task-closure paths.
+- Treat `260803-center-pulse-on-jj-change-graphs` as a requirements correction
+  before public pulse output. Unnamed jj logical-change graphs are primary
+  movement; bookmarks are optional publication hints.
+- Preserve the completed orchestration, enrichment, and task/warning layers,
+  but do not expose or document the public pulse until change-graph integration
+  proves bookmark-free jj movement end to end.
 
 ## 1. Open Queue
 
+- `260803-center-pulse-on-jj-change-graphs` — active; correct the contract around
+  logical changes, visible versions, unnamed topology, and publication hints.
+- `260803-persist-jj-change-graph` — blocked by the revised contract; retain
+  visible change membership, heads, versions, edges, and authority provenance.
+- `260803-calculate-jj-change-deltas` — blocked by persisted observations; emit
+  bookmark-independent change-version, visibility, and topology movement.
+- `260803-separate-publication-hints` — blocked by the change delta; separate
+  Git refs and jj bookmarks as non-gating publication annotations.
+- `260803-integrate-change-graph-pulse` — blocked by change and publication
+  deltas; adapt completed pulse layers before public rendering.
 - `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
   exact comparable-snapshot selection, baseline handling, and orchestration.
 - `260802-enrich-pulse-movement-evidence` — closed; add delta-driven native
   descriptions and reusable parent-relative changed-path evidence.
 - `260802-classify-pulse-task-warnings` — closed; derive factual task-path
   events and warning lifecycles.
-- `260802-expose-pulse-output-workflow` — blocked by orchestration, enrichment,
-  and semantics; add CLI rendering, exits, and end-to-end evidence.
+- `260802-expose-pulse-output-workflow` — blocked by jj change-graph pulse
+  integration; add CLI rendering, exits, and end-to-end evidence.
 - `260802-document-recurring-pulse-adapters` — blocked by the proven public CLI;
   document thin recurring host invocation and consumption.
 - `260802-recurring-movement-pulse` — closed; settled the v1 operator contract
