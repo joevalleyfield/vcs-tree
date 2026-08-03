@@ -30,10 +30,10 @@
   logical changes, visible versions, unnamed topology, and publication hints.
 - `260803-persist-jj-change-graph` — closed; retain visible change membership,
   heads, versions, edges, and authority provenance.
-- `260803-calculate-jj-change-deltas` — ready; emit bookmark-independent
+- `260803-calculate-jj-change-deltas` — closed; emit bookmark-independent
   change-version, visibility, and topology movement.
-- `260803-separate-publication-hints` — blocked by the change delta; separate
-  Git refs and jj bookmarks as non-gating publication annotations.
+- `260803-separate-publication-hints` — ready; separate Git refs and jj
+  bookmarks as non-gating publication annotations.
 - `260803-integrate-change-graph-pulse` — blocked by change and publication
   deltas; adapt completed pulse layers before public rendering.
 - `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
@@ -79,6 +79,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-calculate-jj-change-deltas` — added bookmark-independent jj logical
+  change/version/topology/visibility and visible-head deltas with partial and
+  boundary gates; 186 tests pass with 100% coverage.
 
 - `260803-persist-jj-change-graph` — persisted visible jj change membership,
   version/parent edges, authorities, heads, colocated identity mapping, and

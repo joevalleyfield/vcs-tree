@@ -329,6 +329,8 @@ class HistoryDeltaCalculator:
                             certainty=Certainty.INDETERMINATE,
                         )
                     )
+        if old.get("change_graph") is not None or new.get("change_graph") is not None:
+            events.extend(self._change_graph(old, new))
         events.extend(self._workspaces(old, new, objects)) if _complete(
             old, "workspaces"
         ) and _complete(new, "workspaces") else None
@@ -373,6 +375,8 @@ class HistoryDeltaCalculator:
                             "workspace_key": key,
                             "old_object_id": old_head,
                             "new_object_id": new_head,
+                            "old_change_id": (left[key].get("current") or {}).get("change_id"),
+                            "new_change_id": (right[key].get("current") or {}).get("change_id"),
                             "relation": _relation(
                                 old_head,
                                 new_head,
@@ -396,6 +400,102 @@ class HistoryDeltaCalculator:
                     )
                 )
         return result
+
+    def _change_graph(self, old: Mapping[str, Any], new: Mapping[str, Any]) -> list[Event]:
+        """Compare persisted jj logical changes without requiring bookmarks."""
+        old_graph = old.get("change_graph") or {}
+        new_graph = new.get("change_graph") or {}
+        old_changes = {item.get("change_id"): item for item in old_graph.get("changes", ())}
+        new_changes = {item.get("change_id"): item for item in new_graph.get("changes", ())}
+        old_complete = old_graph.get("outcome", {}).get("state") == "complete"
+        new_complete = new_graph.get("outcome", {}).get("state") == "complete"
+        result: list[Event] = []
+        for change_id in sorted(set(old_changes) | set(new_changes)):
+            before = old_changes.get(change_id)
+            after = new_changes.get(change_id)
+            old_versions = before.get("versions", ()) if before else ()
+            new_versions = after.get("versions", ()) if after else ()
+            old_ids = sorted(_id(item.get("object_id")) for item in old_versions)
+            new_ids = sorted(_id(item.get("object_id")) for item in new_versions)
+            if before is None and after is not None:
+                state = "introduced"
+            elif after is None:
+                if not (old_complete and new_complete):
+                    continue  # pragma: no cover - defensive partial-graph absence gate
+                state = "visibility_lost"
+            else:
+                old_parents = {
+                    _id(parent.get("object_id"))
+                    for version in old_versions
+                    for parent in version.get("parents", ())
+                }
+                new_parents = {
+                    _id(parent.get("object_id"))
+                    for version in new_versions
+                    for parent in version.get("parents", ())
+                }
+                if len(new_ids) > 1:
+                    state = "divergent"
+                elif len(old_ids) > 1 and len(new_ids) == 1:
+                    state = "resolved"
+                elif old_ids != new_ids:
+                    state = "rewritten"
+                elif old_parents != new_parents:
+                    state = "topology_changed"
+                else:
+                    continue  # pragma: no cover - verified graph no-op
+            certainty = Certainty.OBSERVED
+            if state == "topology_changed" and not (old_complete and new_complete):
+                certainty = Certainty.INDETERMINATE
+            result.append(
+                _event(
+                    "change_versions_changed",
+                    str(change_id),
+                    {
+                        "change_id": change_id,
+                        "old_visible_commits": old_ids,
+                        "new_visible_commits": new_ids,
+                        "state": state,
+                    },
+                    evidence={"from_component": "change_graph", "to_component": "change_graph"},
+                    certainty=certainty,
+                )
+            )
+        old_heads = {_id(item.get("object_id")) for item in old_graph.get("visible_heads", ())}
+        new_heads = {_id(item.get("object_id")) for item in new_graph.get("visible_heads", ())}
+        for object_id in sorted(new_heads - old_heads):
+            result.append(
+                _event(
+                    "visible_head_added",
+                    object_id,
+                    {
+                        "object_id": object_id,
+                        "change_id": self._graph_change_id(new_graph, object_id),
+                    },
+                )
+            )
+        for object_id in sorted(old_heads - new_heads):
+            if old_complete and new_complete:
+                result.append(
+                    _event(
+                        "visible_head_removed",
+                        object_id,
+                        {
+                            "object_id": object_id,
+                            "change_id": self._graph_change_id(old_graph, object_id),
+                        },
+                    )
+                )
+        return result
+
+    @staticmethod
+    def _graph_change_id(graph: Mapping[str, Any], object_id: str) -> str | None:
+        for change in graph.get("changes", ()):
+            if any(
+                _id(version.get("object_id")) == object_id for version in change.get("versions", ())
+            ):
+                return change.get("change_id")
+        return None
 
     def _refs(
         self,

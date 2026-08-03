@@ -3,12 +3,12 @@ FKA:
 AKA: bookmark publication annotations; ref authority separation
 Legacy index:
 
-keywords: tooling, blocked, follow-on, jj, bookmarks, refs, publication, colocated
+keywords: tooling, ready, follow-on, jj, bookmarks, refs, publication, colocated
 
 Parent: `260803-center-pulse-on-jj-change-graphs`
 Depends on: `260803-center-pulse-on-jj-change-graphs`; `260803-persist-jj-change-graph`; `260803-calculate-jj-change-deltas`
 Blocks: `260803-integrate-change-graph-pulse`
-Blocked by: stable jj change delta and authority model
+Blocked by:
 Related: `260806-history-completeness-and-bookmarks`
 
 # Separate Bookmarks as Publication Hints
@@ -55,4 +55,3 @@ resource files.
 - Tests prove partial bookmarks cannot hide or downgrade otherwise complete
   unnamed-stack movement.
 - Full `scripts/check` success with 100% statement and branch coverage.
-
