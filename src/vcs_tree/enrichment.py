@@ -44,6 +44,12 @@ def _object_ids(value: Any) -> set[str]:
                         found.add(identifier)
                 else:
                     found.update(_object_ids(item))
+            elif key in {"old_visible_commits", "new_visible_commits"}:
+                found.update(
+                    str(identifier)
+                    for identifier in item
+                    if isinstance(identifier, str) and identifier != "00000000"
+                )
             elif isinstance(item, (Mapping, list, tuple)):
                 found.update(_object_ids(item))
     elif isinstance(value, (list, tuple)):

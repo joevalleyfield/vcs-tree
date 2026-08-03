@@ -67,6 +67,23 @@ def test_virtual_root_is_not_described_or_diffed():
     assert result.repositories[0]["path_evidence"] == []
 
 
+def test_change_graph_version_ids_are_enrichment_candidates():
+    result = PulseEnricher(objects=records()).enrich(
+        delta(
+            [
+                {
+                    "event": "change_versions_changed",
+                    "details": {
+                        "old_visible_commits": ["one"],
+                        "new_visible_commits": ["one"],
+                    },
+                }
+            ]
+        )
+    )
+    assert result.repositories[0]["descriptions"][0]["object_id"]["value"] == "one"
+
+
 def test_limits_are_explicit_and_path_loader_is_parent_relative():
     calls = []
 

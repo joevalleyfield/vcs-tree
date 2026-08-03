@@ -3,12 +3,12 @@ FKA:
 AKA: pulse CLI; pulse rendering; pulse e2e
 Legacy index:
 
-keywords: cli, blocked, pulse, json, rendering, e2e, exits
+keywords: cli, ready, pulse, json, rendering, e2e, exits
 
 Parent: `260802-recurring-movement-pulse`
 Depends on: `260802-implement-pulse-orchestration`; `260802-enrich-pulse-movement-evidence`; `260802-classify-pulse-task-warnings`; `260803-integrate-change-graph-pulse`
 Blocks: `260802-document-recurring-pulse-adapters`
-Blocked by: jj change-graph pulse integration
+Blocked by:
 Related: `260805-delta-presentation-surfaces`
 
 # Expose and Validate the Pulse Output Workflow

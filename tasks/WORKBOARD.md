@@ -34,7 +34,7 @@
   change-version, visibility, and topology movement.
 - `260803-separate-publication-hints` — closed; separate Git refs and jj
   bookmarks as non-gating publication annotations.
-- `260803-integrate-change-graph-pulse` — ready; adapt completed pulse layers
+- `260803-integrate-change-graph-pulse` — closed; adapt completed pulse layers
   before public rendering.
 - `260802-implement-pulse-orchestration` — closed; implement the pulse envelope,
   exact comparable-snapshot selection, baseline handling, and orchestration.
@@ -42,8 +42,8 @@
   descriptions and reusable parent-relative changed-path evidence.
 - `260802-classify-pulse-task-warnings` — closed; derive factual task-path
   events and warning lifecycles.
-- `260802-expose-pulse-output-workflow` — blocked by jj change-graph pulse
-  integration; add CLI rendering, exits, and end-to-end evidence.
+- `260802-expose-pulse-output-workflow` — ready; add CLI rendering, exits, and
+  end-to-end evidence.
 - `260802-document-recurring-pulse-adapters` — blocked by the proven public CLI;
   document thin recurring host invocation and consumption.
 - `260802-recurring-movement-pulse` — closed; settled the v1 operator contract
@@ -79,6 +79,10 @@
   operator workflows and keep authoritative state out of disposable cache.
 
 ## 2. Recent Closures
+
+- `260803-integrate-change-graph-pulse` — wired jj-first graph deltas through
+  enrichment, task-path events, warning lifecycles, and pulse movement states;
+  191 tests pass with 100% coverage.
 
 - `260803-separate-publication-hints` — separated Git refs and jj bookmark
   provenance/completeness in snapshots and deltas; partial bookmarks cannot

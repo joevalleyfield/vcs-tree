@@ -2,8 +2,15 @@ from dataclasses import dataclass
 
 import pytest
 
+from vcs_tree.enrichment import EnrichmentResult
 from vcs_tree.models import CollectionOutcome, CollectionState, HistoryStore, SnapshotEnvelope
-from vcs_tree.pulse import PulseOrchestrator, PulseSelectionError, _now, _pulse_repository
+from vcs_tree.pulse import (
+    PulseOrchestrator,
+    PulseSelectionError,
+    _now,
+    _pulse_repository,
+    _snapshot_warnings,
+)
 from vcs_tree.snapshot import SnapshotResult
 
 
@@ -50,12 +57,25 @@ def entry(document):
     }
 
 
-def orchestrator(ledger, target, delta=None):
+def orchestrator(ledger, target, delta=None, enrichment=None):
     return PulseOrchestrator(
         ledger,
         collector_factory=lambda _: FakeCollector(target),
         delta_factory=lambda _: type(
             "Delta", (), {"calculate": lambda self, source, target: delta or FakeDelta()}
+        )(),
+        enricher_factory=lambda _: type(
+            "Enricher",
+            (),
+            {
+                "enrich": lambda self, value: (
+                    enrichment
+                    or EnrichmentResult(
+                        tuple(value.repository_deltas),
+                        CollectionOutcome(CollectionState.COMPLETE),
+                    )
+                )
+            },
         )(),
         clock=lambda: "2026-08-02T13:00:00Z",
         pulse_id_factory=lambda sid: f"pulse-{sid}",
@@ -163,4 +183,110 @@ def test_pulse_repository_location_fallbacks():
         ]
         == "x"
     )
+
+
+def test_jj_graph_movement_enrichment_and_task_paths_survive_partial_publication():
+    source = snapshot("source", 3)
+    target = snapshot("target", 4)
+    event_repo = {
+        "repository_key": "repo-1",
+        "path": ".",
+        "mode": "colocated",
+        "events": [
+            {"event": "change_versions_changed", "details": {"state": "rewritten"}},
+            {"event": "comparison_incomplete", "details": {"component": "jj_bookmarks"}},
+        ],
+    }
+    delta = FakeDelta(CollectionOutcome(CollectionState.PARTIAL), (event_repo,))
+    enrichment = EnrichmentResult(
+        (
+            {
+                **event_repo,
+                "descriptions": [{"object_id": {"value": "v2"}, "summary": "rewrite"}],
+                "path_evidence": [
+                    {
+                        "object_id": {"value": "v2"},
+                        "parent_id": "v1",
+                        "paths": [{"status": "modified", "path": "tasks/open/example.md"}],
+                    }
+                ],
+            },
+        ),
+        CollectionOutcome(CollectionState.PARTIAL),
+        (
+            {
+                "warning_key": "repo-1|enrichment|missing_object|ledger|description",
+                "repository_key": "repo-1",
+            },
+        ),
+    )
+    result = orchestrator(FakeLedger([entry(source)]), target, delta, enrichment).run("/workspace")
+    assert result.movement["state"] == "observed"
+    assert result.outcome.state is CollectionState.PARTIAL
+    assert result.repositories[0]["descriptions"]
+    assert result.repositories[0]["task_path_events"][0]["event"] == "task_path_modified"
+    assert result.summary["task_path_events"] == 1
+    assert result.warnings[0]["lifecycle"] == "new"
+
+
+def test_warning_only_comparison_is_unknown_not_observed():
+    source = snapshot("source", 3)
+    target = snapshot("target", 4)
+    repo_data = {
+        "repository_key": "repo-1",
+        "path": ".",
+        "mode": "jj",
+        "events": [{"event": "comparison_incomplete", "details": {"component": "bookmarks"}}],
+    }
+    result = orchestrator(
+        FakeLedger([entry(source)]),
+        target,
+        FakeDelta(CollectionOutcome(CollectionState.PARTIAL), (repo_data,)),
+    ).run("/workspace")
+    assert result.movement["state"] == "unknown"
+    assert result.summary["movement_repositories"] == 0
+
+
+def test_snapshot_warning_extraction_and_default_fake_delta_fallback():
+    document = SnapshotEnvelope(
+        "warnings",
+        "2026-08-02T12:00:00Z",
+        {"name": "vcs-tree"},
+        HistoryStore("ledger", 2, writer_id="writer"),
+        {"root": "/workspace", "outcome": {"state": "complete", "errors": []}},
+        (
+            {
+                "repository_key": "repo-1",
+                "mode": "jj",
+                "collection": {
+                    "identity": {"state": "complete", "errors": []},
+                    "bookmarks": {
+                        "state": "partial",
+                        "errors": [
+                            {"kind": "parse_error", "stage": "jj.bookmarks", "message": "bad"}
+                        ],
+                    },
+                },
+                "history_boundary": {"state": "shallow"},
+            },
+        ),
+    )
+    warnings = _snapshot_warnings(document)
+    assert len(warnings) == 2
+    source = snapshot("source", 3)
+    target = snapshot("target", 4)
+    pulse = PulseOrchestrator(
+        FakeLedger([entry(source)]),
+        collector_factory=lambda _: FakeCollector(target),
+        delta_factory=lambda _: type(
+            "Delta",
+            (),
+            {
+                "calculate": lambda self, old, new: FakeDelta(
+                    CollectionOutcome(CollectionState.COMPLETE), ()
+                )
+            },
+        )(),
+    ).run("/workspace")
+    assert pulse.movement["state"] == "empty"
     assert _pulse_repository({"repository_key": "a", "locations": [{}]}, ())["path"] is None
