@@ -22,7 +22,7 @@ NULL_COMMIT = "0" * 40
 
 @dataclass(frozen=True)
 class JjObservation:
-    """Normalized factual jj observation; persistence belongs to later tasks."""
+    """Normalized factual jj observation, including the visible change graph."""
 
     root: Path
     store_hint: str | None
@@ -82,9 +82,9 @@ def _parse_history(line: str) -> dict:
         return {
             "kind": "virtual_root",
             "object_id": _id(commit),
-            "change_id": change,
+            "change_id": None,
             "parents": [],
-            "summary": "virtual root",
+            "summary": "",
         }
     return {
         "kind": "commit",
@@ -175,6 +175,7 @@ class JjAdapter:
         bookmarks, bookmark_outcome = self._bookmarks()
         visible, visible_outcome = self._visible_heads()
         history, history_outcome = self._history()
+        history = _annotate_graph(history, visible, workspaces, bookmarks, history_outcome)
         return JjObservation(
             root,
             self._store_hint(),
@@ -211,14 +212,18 @@ class JjAdapter:
         )
         if error:
             return (), _outcome(CollectionState.ERROR, error)
-        try:
-            return tuple(_parse_workspace(line) for line in output.splitlines() if line), _outcome(
-                CollectionState.COMPLETE
-            )
-        except ValueError as exc:
-            return (), _outcome(
-                CollectionState.PARTIAL, _error("parse_error", "jj.workspaces", str(exc))
-            )
+        records = []
+        errors = []
+        for line in output.splitlines():
+            if not line:
+                continue
+            try:
+                records.append(_parse_workspace(line))
+            except ValueError as exc:
+                errors.append(_error("parse_error", "jj.workspaces", str(exc)))
+        return tuple(records), _outcome(
+            CollectionState.PARTIAL if errors else CollectionState.COMPLETE, *errors
+        )
 
     def _bookmarks(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (
@@ -234,17 +239,18 @@ class JjAdapter:
         )
         if error:
             return (), _outcome(CollectionState.ERROR, error)
-        try:
-            return tuple(
-                sorted(
-                    (_parse_bookmark(line) for line in output.splitlines() if line),
-                    key=lambda item: (item["name"], item["remote"] or ""),
-                )
-            ), _outcome(CollectionState.COMPLETE)
-        except ValueError as exc:
-            return (), _outcome(
-                CollectionState.PARTIAL, _error("parse_error", "jj.bookmarks", str(exc))
-            )
+        records = []
+        errors = []
+        for line in output.splitlines():
+            if not line:
+                continue
+            try:
+                records.append(_parse_bookmark(line))
+            except ValueError as exc:
+                errors.append(_error("parse_error", "jj.bookmarks", str(exc)))
+        return tuple(
+            sorted(records, key=lambda item: (item["name"], item["remote"] or ""))
+        ), _outcome(CollectionState.PARTIAL if errors else CollectionState.COMPLETE, *errors)
 
     def _visible_heads(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         output, error = self._call(
@@ -262,18 +268,19 @@ class JjAdapter:
         if error:
             return (), _outcome(CollectionState.ERROR, error)
         heads = []
+        errors = []
         for line in output.splitlines():
             fields = line.split("\x00")
             if len(fields) != 2 or not fields[0]:
-                return (), _outcome(
-                    CollectionState.PARTIAL,
-                    _error("parse_error", "jj.visible_heads", "malformed visible head record"),
+                errors.append(
+                    _error("parse_error", "jj.visible_heads", "malformed visible head record")
                 )
+                continue
             heads.append(
                 {"object_id": _id(fields[0]), "change_id": fields[1], "authority": "visible_head"}
             )
         return tuple(sorted(heads, key=lambda item: item["object_id"]["value"])), _outcome(
-            CollectionState.COMPLETE
+            CollectionState.PARTIAL if errors else CollectionState.COMPLETE, *errors
         )
 
     def _history(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
@@ -288,13 +295,78 @@ class JjAdapter:
         )
         if error:
             return (), _outcome(CollectionState.ERROR, error)
-        try:
-            history = tuple(_parse_history(line) for line in output.splitlines() if line)
-        except ValueError as exc:
-            return (), _outcome(
-                CollectionState.PARTIAL, _error("parse_error", "jj.history", str(exc))
+        history = []
+        errors = []
+        for line in output.splitlines():
+            if not line:
+                continue
+            try:
+                history.append(_parse_history(line))
+            except ValueError as exc:
+                errors.append(_error("parse_error", "jj.history", str(exc)))
+        return tuple(history), _outcome(
+            CollectionState.PARTIAL if errors else CollectionState.COMPLETE, *errors
+        )
+
+
+def _annotate_graph(
+    history: tuple[dict, ...],
+    visible_heads: tuple[dict, ...],
+    workspaces: tuple[dict, ...],
+    bookmarks: tuple[dict, ...],
+    outcome: CollectionOutcome,
+) -> tuple[dict, ...]:
+    """Attach visibility, authorities, and parent change edges to each version."""
+    by_commit = {
+        item["object_id"]["value"]: item for item in history if item.get("kind") == "commit"
+    }
+    visible = {item["object_id"]["value"] for item in visible_heads}
+    workspace_ids = {
+        (workspace.get("current") or {}).get("object_id", {}).get("value")
+        for workspace in workspaces
+    }
+    workspace_ids.discard(None)
+    authorities: dict[str, set[str]] = {key: set() for key in by_commit}
+    for item in visible_heads:
+        key = item["object_id"]["value"]
+        if key in authorities:
+            authorities[key].add("visible_head")
+    for key in workspace_ids:
+        if key in authorities:
+            authorities[key].add("workspace_head")
+    for bookmark in bookmarks:
+        authority = "jj_remote_bookmark" if bookmark.get("remote") else "jj_local_bookmark"
+        for target in [*bookmark.get("targets", ()), *bookmark.get("added_targets", ())]:
+            key = target.get("value")
+            if key in authorities:
+                authorities[key].add(authority)
+    annotated = []
+    for item in history:
+        record = dict(item)
+        if item.get("kind") == "virtual_root":
+            annotated.append(record)
+            continue
+        object_id = item["object_id"]["value"]
+        record["visibility"] = (
+            "unknown"
+            if outcome.state is not CollectionState.COMPLETE
+            else "visible"
+            if object_id in visible
+            else "hidden"
+        )
+        record["authorities"] = sorted(authorities.get(object_id, ()))
+        parent_changes = []
+        for parent in item.get("parents", ()):
+            parent_record = by_commit.get(parent.get("value"))
+            parent_changes.append(
+                {
+                    "object_id": parent,
+                    "change_id": parent_record.get("change_id") if parent_record else None,
+                }
             )
-        return history, _outcome(CollectionState.COMPLETE)
+        record["parent_changes"] = parent_changes
+        annotated.append(record)
+    return tuple(annotated)
 
 
 __all__ = ["JjAdapter", "JjObservation", "NULL_COMMIT"]

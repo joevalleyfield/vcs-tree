@@ -3,12 +3,12 @@ FKA:
 AKA: unnamed stack deltas; logical change movement
 Legacy index:
 
-keywords: tooling, blocked, follow-on, jj, delta, rewrite, topology, visibility
+keywords: tooling, ready, follow-on, jj, delta, rewrite, topology, visibility
 
 Parent: `260803-center-pulse-on-jj-change-graphs`
 Depends on: `260803-center-pulse-on-jj-change-graphs`; `260803-persist-jj-change-graph`
 Blocks: `260803-separate-publication-hints`; `260803-integrate-change-graph-pulse`
-Blocked by: persisted jj change-graph observations
+Blocked by:
 Related: `260801-calculate-history-deltas`
 
 # Calculate jj Logical-Change and Stack Deltas
@@ -59,4 +59,3 @@ live resource files.
 - A real temporary jj repository demonstrates unnamed movement without
   bookmarks.
 - Full `scripts/check` success with 100% statement and branch coverage.
-

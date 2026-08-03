@@ -5,11 +5,12 @@ import pytest
 from vcs_tree.jj_adapter import (
     NULL_COMMIT,
     JjAdapter,
+    _annotate_graph,
     _parse_bookmark,
     _parse_history,
     _parse_workspace,
 )
-from vcs_tree.models import CollectionState, HistoryBoundaryState
+from vcs_tree.models import CollectionOutcome, CollectionState, HistoryBoundaryState
 
 
 def completed(stdout="", stderr="", returncode=0):
@@ -31,6 +32,7 @@ def test_parsers_preserve_jj_identity_conflicts_and_workspaces():
     assert commit["committer"]["email"] == "b@example"
     virtual = _parse_history(history_line(NULL_COMMIT))
     assert virtual["kind"] == "virtual_root"
+    assert virtual["summary"] == ""
     bookmark = _parse_bookmark("topic\x00origin\x00conflicted\x00\x00old\x00new1,new2\x00ahead")
     assert bookmark["state"] == "conflicted"
     assert len(bookmark["added_targets"]) == 2
@@ -58,10 +60,10 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     responses = iter(
         [
             completed(str(tmp_path)),
-            completed("default\x00" + str(tmp_path) + "\x00ABC\x00change\x00dirty\x00A:1\n"),
-            completed("topic\x00origin\x00normal\x00ABC\x00\x00\x00ahead\n"),
-            completed("ABC\x00change\n"),
-            completed(history_line() + "\n" + history_line(NULL_COMMIT) + "\n"),
+            completed("default\x00" + str(tmp_path) + "\x00ABC\x00change\x00dirty\x00A:1\n\n"),
+            completed("topic\x00origin\x00normal\x00ABC\x00\x00\x00ahead\n\n"),
+            completed("ABC\x00change\n\n"),
+            completed(history_line() + "\n\n" + history_line(NULL_COMMIT) + "\n"),
         ]
     )
     observation = JjAdapter(tmp_path, runner=lambda _command: next(responses)).collect()
@@ -72,6 +74,13 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     assert observation.visible_heads[0]["authority"] == "visible_head"
     assert observation.history[1]["kind"] == "virtual_root"
     assert observation.history_boundary.state is HistoryBoundaryState.COMPLETE
+    commit = observation.history[0]
+    assert commit["visibility"] == "visible"
+    assert "visible_head" in commit["authorities"]
+    assert commit["parent_changes"] == [
+        {"object_id": {"algorithm": "jj", "value": "p"}, "change_id": None},
+        {"object_id": {"algorithm": "jj", "value": "q"}, "change_id": None},
+    ]
     assert observation.to_dict()["root"] == str(tmp_path)
 
 
@@ -119,6 +128,38 @@ def test_component_errors_and_parse_errors(tmp_path):
         assert result[1].state is CollectionState.PARTIAL
     heads, outcome = malformed._visible_heads()
     assert heads == () and outcome.state is CollectionState.PARTIAL
+
+
+def test_partial_history_and_bookmarks_keep_valid_records(tmp_path):
+    adapter = JjAdapter(
+        tmp_path,
+        runner=lambda _command: completed(
+            history_line() + "\nbad\n"
+            if _command[0] == "log" and "all()" in _command
+            else "good\x00origin\x00normal\x00ABC\x00\x00\x00ahead\nbad\n"
+            if _command[0] == "bookmark"
+            else ""
+        ),
+    )
+    history, history_outcome = adapter._history()
+    bookmarks, bookmark_outcome = adapter._bookmarks()
+    assert len(history) == 1 and history_outcome.state is CollectionState.PARTIAL
+    assert len(bookmarks) == 1 and bookmark_outcome.state is CollectionState.PARTIAL
+
+
+def test_graph_annotations_preserve_partial_unknowns_and_ignore_unmatched_authorities(tmp_path):
+    record = _parse_history(history_line("ABC"))
+    record["parents"] = []
+    heads = ({"object_id": {"algorithm": "jj", "value": "other"}, "change_id": "x"},)
+    result = _annotate_graph(
+        (record,),
+        heads,
+        ({"current": {"object_id": {"value": "workspace"}}},),
+        ({"name": "local", "targets": [{"value": "bookmark"}], "added_targets": []},),
+        CollectionOutcome(CollectionState.PARTIAL),
+    )
+    assert result[0]["visibility"] == "unknown"
+    assert result[0]["authorities"] == []
 
 
 def test_store_hint_and_default_runner(monkeypatch, tmp_path):

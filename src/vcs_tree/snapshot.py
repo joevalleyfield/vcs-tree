@@ -101,6 +101,35 @@ def _merge_workspaces(
     return tuple(merged[key] for key in sorted(merged))
 
 
+def _change_graph(jj: JjObservation | None) -> dict[str, Any] | None:
+    """Build per-snapshot jj change membership without naming synthetic stacks."""
+    if jj is None:
+        return None
+    changes: dict[str, dict[str, Any]] = {}
+    for record in jj.history:
+        change_id = record.get("change_id")
+        if not change_id or record.get("kind") == "virtual_root":
+            continue
+        versions = changes.setdefault(change_id, {"change_id": change_id, "versions": []})[
+            "versions"
+        ]
+        versions.append(
+            {
+                "object_id": record["object_id"],
+                "visibility": record.get("visibility", "unknown"),
+                "authorities": list(record.get("authorities", ())),
+                "parents": list(record.get("parent_changes", ())),
+            }
+        )
+    for change in changes.values():
+        change["versions"] = sorted(change["versions"], key=lambda item: item["object_id"]["value"])
+    return {
+        "changes": [changes[key] for key in sorted(changes)],
+        "visible_heads": list(jj.visible_heads),
+        "outcome": jj.collection.get("history", _complete()).to_dict(),
+    }
+
+
 class SnapshotCollector:
     """Collect one repository observation and publish a durable snapshot."""
 
@@ -190,6 +219,24 @@ class SnapshotCollector:
         repository_key = self.ledger.repository_key(continuity, writer_id=self.ledger.writer_id)
         observations = [item for item in (git, jj) if item is not None]
         history = [record for item in observations for record in item.history]
+        if git and jj:
+            git_ids = {
+                item["object_id"]["value"]: item["object_id"]
+                for item in git.history
+                if item.get("kind") != "virtual_root"
+            }
+            history = [
+                {
+                    **record,
+                    **(
+                        {"git_object_id": git_ids[record["object_id"]["value"]]}
+                        if record.get("object_id", {}).get("value") in git_ids
+                        and record.get("kind") != "virtual_root"
+                        else {}
+                    ),
+                }
+                for record in history
+            ]
         workspaces = _merge_workspaces(git, jj)
         git_refs = git.refs if git else ()
         jj_refs = jj.bookmarks if jj else ()
@@ -232,6 +279,7 @@ class SnapshotCollector:
             "workspaces": list(workspaces),
             "refs": list(refs),
             "roots": roots,
+            "change_graph": _change_graph(jj),
             "_history_objects": history,
         }
 

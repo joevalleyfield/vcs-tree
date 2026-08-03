@@ -8,7 +8,7 @@ from vcs_tree.models import (
     HistoryBoundary,
     HistoryBoundaryState,
 )
-from vcs_tree.snapshot import SnapshotCollector, _dedupe_dicts
+from vcs_tree.snapshot import SnapshotCollector, _change_graph, _dedupe_dicts
 
 
 def git_observation(root, *, state=CollectionState.COMPLETE, boundary=None):
@@ -152,6 +152,60 @@ def test_colocated_snapshot_merges_native_surfaces_and_deduplicates(tmp_path):
     assert {item.get("authority", "") for item in repository["refs"]} == {"local", ""}
     assert result.generation == 1
     assert len(ledger.read_objects()) == 2
+
+
+def test_jj_change_graph_and_colocated_identity_mapping_are_retained(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".jj").mkdir()
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    git = git_observation(tmp_path)
+    jj = jj_observation(tmp_path)
+    jj_history = {
+        "kind": "commit",
+        "object_id": {"algorithm": "jj", "value": "abc"},
+        "change_id": "change",
+        "parents": [],
+        "visibility": "visible",
+        "authorities": ["visible_head"],
+    }
+    jj = JjObservation(
+        jj.root,
+        jj.store_hint,
+        jj.workspaces,
+        jj.bookmarks,
+        jj.visible_heads,
+        (jj_history,),
+        jj.history_boundary,
+        jj.collection,
+    )
+    collector = SnapshotCollector(
+        ledger,
+        git_factory=lambda _path: type("Factory", (), {"collect": lambda self: git})(),
+        jj_factory=lambda _path: type("Factory", (), {"collect": lambda self: jj})(),
+    )
+    repository = collector.collect(tmp_path).envelope.repositories[0]
+    assert repository["change_graph"]["changes"][0]["change_id"] == "change"
+    assert repository["change_graph"]["visible_heads"]
+    assert repository["change_graph"]["changes"][0]["versions"][0]["object_id"]["value"] == "abc"
+    objects = ledger.read_objects()
+    jj_record = next(
+        item
+        for item in objects.values()
+        if item["kind"] == "commit" and item["object_id"]["algorithm"] == "jj"
+    )
+    assert jj_record["git_object_id"]["value"] == "abc"
+    assert SnapshotCollector(ledger)._repository(tmp_path, None, None)["change_graph"] is None
+    virtual = JjObservation(
+        jj.root,
+        jj.store_hint,
+        jj.workspaces,
+        jj.bookmarks,
+        jj.visible_heads,
+        ({"kind": "virtual_root", "change_id": "root", "object_id": {"value": "0"}},),
+        jj.history_boundary,
+        jj.collection,
+    )
+    assert _change_graph(virtual)["changes"] == []
 
 
 def test_repeated_snapshot_reuses_key_and_objects(tmp_path):
