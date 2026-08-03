@@ -3,7 +3,7 @@ FKA:
 AKA: scheduled pulse guide; host consumers
 Legacy index:
 
-keywords: docs, ready, pulse, automation, scheduling, adapters
+keywords: docs, historical, pulse, automation, scheduling, adapters
 
 Parent: `260802-recurring-movement-pulse`
 Depends on: `260802-expose-pulse-output-workflow`
@@ -55,8 +55,22 @@ Codex-specific core behavior, or live resource changes.
 
 ## Completion Evidence
 
-- All documented commands match installed `--help` output and are smoke-run
+- [x] All documented commands match installed `--help` output and are smoke-run
   against temporary state where safe.
-- Markdown links and line lengths pass repository documentation checks.
-- Task closure records which host examples were mechanically validated and why
-  any platform-specific example could only be reviewed statically.
+- [x] Markdown link target and line-length checks pass (`README.md` points to
+  the new guide; changed documentation lines are at most 100 characters).
+- [x] Foreground summary, JSON plus separated stderr, `history init`,
+  `history inspect`, and `history list` were mechanically run against a
+  temporary initialized state root; both pulse formats returned baseline exit
+  `0`.
+- [x] Cron and launchd examples were reviewed statically because they require
+  host-specific locking and service registration; neither adds package code or
+  semantics.
+
+## Decisions and evidence
+
+- Added `docs/recurring-pulse.md` with explicit scan/state roots, exit handling,
+  JSON inspection, bounds, single-writer/cloud-drive warnings, recovery, and
+  thin cron/launchd adapters.
+- Added one concise README link; no scheduler dependency, service file, source,
+  test, or live-resource change was introduced.

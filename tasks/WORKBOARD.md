@@ -27,7 +27,7 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260802-document-recurring-pulse-adapters` — Document how a host invokes and consumes the proven pulse CLI without moving selection, warning, task-path, or assessment semantics outside the package.
+- _No open tasks._
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures

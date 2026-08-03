@@ -148,6 +148,10 @@ relative to the scan root. Use `--all` to include verified no-op repositories,
 compact machine-readable document containing only repositories with events.
 Local continuity IDs remain available in JSON as secondary metadata.
 
+For thin foreground, background, cron, and launchd host adapters, see
+[`docs/recurring-pulse.md`](docs/recurring-pulse.md). The guide keeps scheduling
+and assessment outside the package and calls out machine-local state explicitly.
+
 Authoritative history state, repository keys, and writer enrollment are
 machine-local. The command reports the resolved state, configuration, and
 disposable cache locations and warns that these control structures do not
