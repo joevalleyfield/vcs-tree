@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** jj change-graph contract corrected; persistence ready; public pulse CLI blocked; cutover pending
+> **Status:** Backlog review contract active; pulse dogfood follow-ups pending; cutover pending
 > **Last Sync:** 2026-08-03
 
 ## 0. Manual Triage
@@ -20,14 +20,20 @@
 - Treat the closed `260803-center-pulse-on-jj-change-graphs` correction as the
   requirements source before public pulse output. Unnamed jj logical-change
   graphs are primary movement; bookmarks are optional publication hints.
-- Preserve the completed orchestration, enrichment, and task/warning layers,
-  but do not expose or document the public pulse until change-graph integration
-  proves bookmark-free jj movement end to end.
+- The public pulse now incorporates the completed change-graph integration,
+  enrichment, and task/warning layers. Continue dogfooding migration boundaries
+  and recurring-warning behavior before cutover.
+- Treat `260803-define-backlog-review-pressure` as the requirements parent for a
+  second recurring instrument: elapsed-time review pressure plus explicit human
+  disposition, distinct from pulse movement.
+- Do not interpret old age as health or priority. Intentionally dormant work
+  should revisit less often, while new movement, a due review, or an external
+  wake signal can bring it back into consideration.
 
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- _No open tasks._
+- `260803-define-backlog-review-pressure` — Define a second recurring vcs-tree instrument that surfaces repositories whose elapsed time and unresolved evidence warrant a conscious review. Pulse answers “what moved?”; backlog...
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
