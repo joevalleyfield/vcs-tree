@@ -26,9 +26,12 @@
 - Treat `260803-define-backlog-review-pressure` as the requirements parent for a
   second recurring instrument: elapsed-time review pressure plus explicit human
   disposition, distinct from pulse movement.
-- Do not interpret old age as health or priority. Intentionally dormant work
-  should revisit less often, while new movement, a due review, or an external
-  wake signal can bring it back into consideration.
+- Backlog may rank and strongly surface evidence-backed pressure for downstream
+  coordinating or note-taking roles without writing into repositories. A null
+  root with substantive vision or implementation is immediately
+  `initial_commit_due`; metadata-only initialization remains a gentle intent.
+- Intentionally dormant work should revisit less often, while new movement, a
+  due review, or an external wake signal can bring it back into consideration.
 
 ## 1. Open Queue
 
