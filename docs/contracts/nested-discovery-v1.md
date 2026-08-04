@@ -44,8 +44,11 @@ Candidate roots are grouped by their canonical resolved root path.
   other, shares a remote URL, or points at the same native store through a
   workspace relationship. Native adapters may report shared-store hints, but
   the local ledger key is assigned to the observed root continuity record.
-- Discovery and reporting are read-only; no repository is initialized,
-  fetched, updated, or rewritten as a side effect.
+- Discovery itself is read-only; no repository is initialized, fetched,
+  updated, or rewritten while finding and grouping roots. A later history
+  collection may perform the narrowly authorized native jj working-copy
+  snapshot defined by `history-snapshot-v1.md`; that observation side effect is
+  not part of discovery.
 
 ## Aliases and deduplication
 

@@ -11,7 +11,13 @@ from vcs_tree.ledger import (
     WriterMismatchError,
     resolve_paths,
 )
-from vcs_tree.models import ContractError
+from vcs_tree.models import (
+    V2_REPOSITORY_COMPONENTS,
+    ContractError,
+    HistoryStore,
+    SnapshotEnvelope,
+    SnapshotEnvelopeV2,
+)
 
 
 def record(value="a"):
@@ -215,3 +221,32 @@ def test_atomic_write_removes_temporary_file_on_replace_failure(monkeypatch, tmp
     with pytest.raises(OSError):
         ledger_module._atomic_write(destination, {"value": 1})
     assert not list(root.glob(".*"))
+
+
+def test_mixed_snapshot_manifests_read_without_rewriting_v1(tmp_path):
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    store = HistoryStore(ledger.store_id, 0, writer_id="writer-a")
+    v1 = SnapshotEnvelope("v1", "2026-08-04T12:00:00Z", {}, store, {}, ())
+    timestamp = "2026-08-04T12:01:00Z"
+    complete = {"state": "complete", "attempted_at": timestamp, "errors": []}
+    repository = {
+        "repository_key": "repo-1",
+        "mode": "git",
+        "collection": {name: complete for name in V2_REPOSITORY_COMPONENTS},
+        "workspaces": [],
+    }
+    v2 = SnapshotEnvelopeV2("v2", timestamp, {}, store, {}, (repository,))
+    original_v1 = v1.to_dict()
+    ledger.record_snapshot("bare", 0, writer_id="writer-a")
+    ledger.record_snapshot("v1", 0, manifest=original_v1, writer_id="writer-a")
+    ledger.record_snapshot("v2", 0, manifest=v2.to_dict(), writer_id="writer-a")
+    documents = HistoryLedger.open(tmp_path / "state").read_snapshot_envelopes()
+    assert [document.schema_version for document in documents] == [1, 2]
+    assert ledger.read_snapshots()[1]["manifest"] == original_v1
+
+
+def test_invalid_retained_snapshot_manifest_is_corrupt(tmp_path):
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    ledger.record_snapshot("invalid", 0, manifest={"schema": "wrong"}, writer_id="writer-a")
+    with pytest.raises(LedgerCorruptError):
+        ledger.read_snapshot_envelopes()

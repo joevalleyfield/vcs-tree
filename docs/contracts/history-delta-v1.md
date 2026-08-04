@@ -191,8 +191,11 @@ jj working-copy head is authoritative.
 
 ### `working_copy_changed`
 
-Reports factual clean/dirty/conflicted state or summary changes. It does not
-assert committed movement.
+Reports factual recorded working-copy state, parent-relative change, conflict,
+or summary changes. It does not assert a conventional Git-style commit event.
+For jj, the event MUST distinguish changes in recorded `@` from changes in
+filesystem refresh/freshness provenance. A fallback from `current` to
+`recorded_maybe_stale` is evidence loss, not content movement.
 
 ## Ref Events
 
@@ -208,7 +211,8 @@ A ref key is present before and absent or natively deleted after complete ref
 collection.
 
 Payload includes the prior target state. Deletion MUST NOT remove ledger
-objects.
+objects. Under the temporal-fact extension, complete deletion lands a tombstone
+for the ref-existence fact and its active target edges.
 
 ### `ref_target_changed`
 
@@ -303,6 +307,23 @@ generation:
 
 This event means “first observed by this history store,” not “created during
 the interval.”
+
+## Fact-Interval Projection
+
+Mechanical review predicates MAY project delta events into atomic fact
+validity intervals. Creation or first positive observation opens an interval;
+complete confirmation advances its `last_confirmed_at`; and a complete
+deletion or relationship replacement lands a tombstone. Partial or errored
+comparison never creates a tombstone for omitted evidence.
+
+Entity existence and relationship edges project independently. For example, a
+`ref_target_changed` event keeps the ref-existence fact active, tombstones the
+old target edge, and opens the new target edge. Reappearance after deletion
+opens a new interval under the same stable fact slot only when repository and
+fact identity continuity are supported.
+
+This projection remains factual. Counts and elapsed clocks are derived from
+retained intervals and do not rank, pressure, or recommend review.
 
 ### `history_became_reachable`
 

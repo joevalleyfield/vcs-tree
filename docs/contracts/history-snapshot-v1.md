@@ -1,6 +1,7 @@
 # History Snapshot Contract v1
 
-Status: accepted for implementation review; jj change-graph correction applied
+Status: accepted baseline; jj working-copy observation policy corrected,
+temporal-evidence schema follow-up pending
 
 Schema identifier: `vcs-tree.history-snapshot`
 
@@ -111,6 +112,34 @@ A snapshot MUST reference a ledger generation that contains all objects needed
 to resolve its roots. A snapshot MUST NOT embed the complete history closure by
 default.
 
+### Source-repository observation side effects
+
+Collection is non-destructive, but it is not universally free of native
+observation side effects. For a jj working copy, the collector SHOULD run the
+normal observation path that snapshots current filesystem state into the
+working-copy commit `@` before collecting its facts. Periodic capture of `@` is
+part of the intended observation model.
+
+This narrow exception does not authorize fetch, bookmark movement, commit,
+rebase, abandon, repair, reset, or an intentional rewrite of user files or
+repository history. Discovery, ledger reads, and delta calculation remain
+read-only.
+
+The snapshot MUST distinguish:
+
+- whether native working-copy refresh was performed, skipped, failed, or not
+  applicable;
+- facts read from the recorded working-copy commit; and
+- whether the collected commit is known current with the filesystem or may be
+  stale.
+
+If normal jj refresh fails, the collector SHOULD retry in a native mode that
+does not snapshot or update the working copy. A successful fallback retains the
+refresh error, reports filesystem freshness as `recorded_maybe_stale`, and MAY
+still completely collect facts about the recorded `@`. It MUST NOT turn every
+recorded working-copy fact into `unknown` merely because filesystem refresh was
+unavailable.
+
 ### Export bundle
 
 An export bundle MAY include a snapshot plus some or all referenced ledger
@@ -199,6 +228,54 @@ stderr, but MUST retain `kind` and `stage`.
 
 An empty complete component and an errored component are different states.
 
+### Temporal collection and fact evidence
+
+The next compatible snapshot/ledger extension MUST separate temporal
+collection metadata from atomic fact validity. The following fields are
+requirements for that extension, not additions to the currently implemented v1
+wire shape until the versioning decision is settled.
+
+`last_attempted_at` records the latest attempt regardless of outcome.
+`complete_as_of` records the latest complete observation of that semantic
+component. A partial or error observation advances `last_attempted_at` but does
+not advance `complete_as_of`.
+
+Existing v1 records lack these fields and therefore have unknown temporal
+collection metadata; readers MUST NOT replace it with `captured_at`. A
+component that has never completed uses the explicit state `never_observed` in
+a mechanical predicate result. That state compares as negative infinity for
+elapsed-threshold evaluation but is not serialized as a fabricated timestamp.
+
+Retained atomic facts SHOULD carry independently queryable validity intervals:
+
+```json
+{
+  "fact_key": "git-ref-exists:refs/heads/main",
+  "first_observed_at": "2026-07-20T13:00:00Z",
+  "last_confirmed_at": "2026-07-29T13:00:00Z",
+  "invalidated_at": null,
+  "evidence": {
+    "snapshot_id": "01K1CEXAMPLE00000000000000",
+    "component": "refs"
+  }
+}
+```
+
+An atomic fact is one independently truth-valued assertion. Entity existence,
+target edges, tracking state, conflict state, and graph edges MUST NOT share one
+validity interval when they can be confirmed or invalidated independently.
+
+A partial observation MAY advance `last_confirmed_at` for positive facts it
+actually observed. It MUST NOT land tombstones for omitted facts. A complete
+observation lands an explicit `invalidated_at` tombstone for a prior active fact
+it can prove absent. When identity continuity is supported, later reappearance
+opens a new validity interval for the same stable fact slot without erasing the
+prior tombstone.
+
+Movement remains a delta between observations. An elapsed-since-movement query
+is derived from retained transitions rather than represented by a second,
+ambiguous component clock.
+
 ## History Completeness Boundary
 
 Every repository observation MUST describe the ancestry boundary:
@@ -275,6 +352,11 @@ Each repository observation has:
   "roots": []
 }
 ```
+
+The pending temporal-evidence extension separates `workspaces`,
+`working_copy`, and `working_copy_refresh` as semantic components. Existing v1
+records do not carry the latter two outcomes; a mechanical-intent reader treats
+them as `unknown` rather than borrowing the workspace-topology outcome.
 
 ### Repository key
 
@@ -387,6 +469,39 @@ Rules:
 - `change_id` is required for jj commits and null for Git-only commits.
 - `working_copy.state` is `clean`, `dirty`, `conflicted`, `unknown`, or
   `unreadable`.
+
+Snapshot v2 adds independently collected refresh provenance and filesystem
+freshness equivalent to:
+
+```json
+{
+  "refresh": {
+    "state": "performed",
+    "attempted_at": "2026-07-29T13:00:00Z",
+    "errors": []
+  },
+  "freshness": "current"
+}
+```
+
+- `working_copy.refresh.state` is `performed`, `skipped`, `failed`, or
+  `not_applicable`. Refresh errors remain attached even when recorded `@` facts
+  are otherwise readable.
+- `working_copy.freshness` is `current`, `recorded_maybe_stale`, `unknown`, or
+  `not_applicable`. It describes synchronization with current filesystem state,
+  not the completeness of recorded commit facts.
+- Workspace topology, recorded working-copy state, and filesystem refresh MUST
+  carry independently meaningful collection outcomes when they can fail
+  independently.
+- For jj, recorded working-copy changes are the parent-relative changes in `@`.
+  They SHOULD include bounded path/type/conflict evidence collected after the
+  refresh attempt or from the recorded fallback state.
+- These fields are required by snapshot v2 and are not an additive extension
+  to v1. Existing v1 records without them normalize to refresh/freshness
+  `unknown`; absence MUST NOT be interpreted as `performed` or `current`.
+- Snapshot v2 stores per-attempt observer time. Rolling component clocks and
+  fact intervals are derived from retained observations rather than copied
+  into each snapshot.
 
 ## Native Object ID
 

@@ -8,9 +8,12 @@ Schema version: `1`
 
 ## Purpose
 
-The recurring movement pulse is one read-only operator workflow that captures a
-new history snapshot, compares it with a comparable retained snapshot, and
-turns the existing factual delta into a self-describing movement brief.
+The recurring movement pulse is one non-destructive operator workflow that
+captures a new history snapshot, compares it with a comparable retained
+snapshot, and turns the existing factual delta into a self-describing movement
+brief. Snapshot collection may perform the narrowly authorized native jj
+working-copy refresh defined by the snapshot contract; comparison and
+enrichment remain read-only.
 
 The pulse answers “what moved, and what evidence supports that description?”
 It does not decide whether movement is progress, completion, regression,
@@ -56,7 +59,10 @@ exit status is partial.
 
 Progress, collection status, and location warnings go to stderr. Stdout contains
 only the selected output representation. The command MUST NOT fetch, repair,
-reset, switch, commit, or otherwise mutate a scanned repository.
+reset, switch, commit, rebase, move bookmarks, or intentionally rewrite a
+scanned repository. Its only permitted source-repository side effect is the
+native jj working-copy refresh performed while capturing the target snapshot,
+with refresh/fallback provenance retained in that snapshot.
 
 ## Operation Sequence
 
@@ -143,7 +149,7 @@ by parent edges, visible heads, and workspace heads. The jj null root remains `v
 `00000000` and has no fabricated author, committer, description, or date.
 
 Descriptions already present in immutable ledger objects SHOULD be reused.
-Changed-path collection MUST be read-only and stored as immutable
+Post-snapshot changed-path enrichment MUST be read-only and stored as immutable
 object/parent evidence so later pulses do not repeat native queries. Missing,
 partial, or unsupported path detail remains explicit and does not invalidate a
 complete base delta.
@@ -428,7 +434,8 @@ Pulse v1 does not:
 - infer progress, health, priority, ownership, or intent;
 - treat a task filename date as an event timestamp;
 - infer a rename from separate additions and deletions;
-- fetch remote state or mutate source repositories;
+- fetch remote state or mutate source repositories beyond the snapshot
+  contract's reported native jj working-copy refresh;
 - compare stores or scan roots by heuristic identity; or
 - hide a latest partial observation to produce a cleaner comparison.
 

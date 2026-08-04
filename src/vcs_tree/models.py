@@ -37,6 +37,28 @@ class CollectionState(_ValueEnum):
     NOT_REQUESTED = "not_requested"
 
 
+class WorkingCopyState(_ValueEnum):
+    CLEAN = "clean"
+    DIRTY = "dirty"
+    CONFLICTED = "conflicted"
+    UNKNOWN = "unknown"
+    UNREADABLE = "unreadable"
+
+
+class RefreshState(_ValueEnum):
+    PERFORMED = "performed"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class Freshness(_ValueEnum):
+    CURRENT = "current"
+    RECORDED_MAYBE_STALE = "recorded_maybe_stale"
+    UNKNOWN = "unknown"
+    NOT_APPLICABLE = "not_applicable"
+
+
 class IntegrityState(_ValueEnum):
     OK = "ok"
     DEGRADED = "degraded"
@@ -197,6 +219,51 @@ class CollectionOutcome:
 
 
 @dataclass(frozen=True)
+class ObservationOutcome:
+    """A v2 component outcome with explicit observer-time provenance."""
+
+    state: CollectionState
+    attempted_at: str | None = None
+    errors: tuple[CollectionError, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.state is CollectionState.NOT_REQUESTED:
+            if self.attempted_at is not None:
+                raise ContractError("not_requested outcome cannot have attempted_at")
+            if self.errors:
+                raise ContractError("not_requested outcome cannot contain errors")
+        elif self.attempted_at is None:
+            raise ContractError("attempted outcome requires attempted_at")
+        else:
+            _timestamp(self.attempted_at, "outcome.attempted_at")
+        if self.state is CollectionState.COMPLETE and self.errors:
+            raise ContractError("complete outcome cannot contain errors")
+        if self.state is CollectionState.ERROR and not self.errors:
+            raise ContractError("error outcome requires an error")
+
+    def to_dict(self) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "state": self.state.value,
+            "errors": [error.to_dict() for error in self.errors],
+        }
+        if self.attempted_at is not None:
+            value["attempted_at"] = self.attempted_at
+        return value
+
+    @classmethod
+    def from_dict(cls, value: Any) -> ObservationOutcome:
+        obj = _object(value, "outcome")
+        errors = tuple(
+            CollectionError.from_dict(item)
+            for item in _list(obj.get("errors", []), "outcome.errors")
+        )
+        attempted_at = obj.get("attempted_at")
+        if attempted_at is not None:
+            attempted_at = _timestamp(attempted_at, "outcome.attempted_at")
+        return cls(CollectionState.parse(_required(obj, "state")), attempted_at, errors)
+
+
+@dataclass(frozen=True)
 class HistoryBoundary:
     state: HistoryBoundaryState
     boundary_objects: tuple[ObjectId, ...] = ()
@@ -295,6 +362,163 @@ class SnapshotEnvelope:
 
     @classmethod
     def from_dict(cls, value: Any) -> SnapshotEnvelope:
+        obj = _envelope(value, cls.schema, cls.schema_version)
+        repositories = tuple(
+            _object(item, "repository")
+            for item in _list(_required(obj, "repositories"), "repositories")
+        )
+        return cls(
+            _string(_required(obj, "snapshot_id"), "snapshot_id"),
+            _timestamp(_required(obj, "captured_at"), "captured_at"),
+            _object(_required(obj, "collector"), "collector"),
+            HistoryStore.from_dict(_required(obj, "history_store")),
+            _object(_required(obj, "scan"), "scan"),
+            repositories,
+        )
+
+
+V2_REPOSITORY_COMPONENTS = (
+    "identity",
+    "git_worktrees",
+    "jj_workspaces",
+    "git_refs",
+    "jj_bookmarks",
+    "jj_visible_heads",
+    "git_history",
+    "jj_history",
+    "path_evidence",
+)
+
+_ENTRY_STATUSES = {
+    "added",
+    "modified",
+    "deleted",
+    "renamed",
+    "copied",
+    "type_changed",
+    "conflicted",
+}
+
+
+def _validate_refresh(value: Any) -> None:
+    refresh = _object(value, "working_copy.refresh")
+    state = RefreshState.parse(_required(refresh, "state"))
+    attempted_at = refresh.get("attempted_at")
+    errors = tuple(
+        CollectionError.from_dict(item)
+        for item in _list(refresh.get("errors", []), "working_copy.refresh.errors")
+    )
+    if state is RefreshState.NOT_APPLICABLE:
+        if attempted_at is not None or errors:
+            raise ContractError("not_applicable refresh cannot have an attempt or errors")
+    else:
+        if attempted_at is None:
+            raise ContractError("attempted refresh requires attempted_at")
+        _timestamp(attempted_at, "working_copy.refresh.attempted_at")
+    if state in {RefreshState.PERFORMED, RefreshState.SKIPPED} and errors:
+        raise ContractError(f"{state.value} refresh cannot contain errors")
+    if state is RefreshState.FAILED and not errors:
+        raise ContractError("failed refresh requires an error")
+
+
+def _validate_working_copy(value: Any) -> None:
+    working_copy = _object(value, "working_copy")
+    ObservationOutcome.from_dict(_required(working_copy, "outcome"))
+    WorkingCopyState.parse(_required(working_copy, "recorded_state"))
+    _validate_refresh(_required(working_copy, "refresh"))
+    freshness = Freshness.parse(_required(working_copy, "freshness"))
+    refresh_state = RefreshState.parse(_object(working_copy["refresh"], "refresh")["state"])
+    if refresh_state is RefreshState.PERFORMED and freshness is not Freshness.CURRENT:
+        raise ContractError("performed refresh requires current freshness")
+    if refresh_state is RefreshState.FAILED and freshness not in {
+        Freshness.RECORDED_MAYBE_STALE,
+        Freshness.UNKNOWN,
+    }:
+        raise ContractError("failed refresh requires stale or unknown freshness")
+    if refresh_state is RefreshState.SKIPPED and freshness not in {
+        Freshness.RECORDED_MAYBE_STALE,
+        Freshness.UNKNOWN,
+    }:
+        raise ContractError("skipped refresh requires stale or unknown freshness")
+    if refresh_state is RefreshState.NOT_APPLICABLE and freshness not in {
+        Freshness.CURRENT,
+        Freshness.NOT_APPLICABLE,
+    }:
+        raise ContractError("not_applicable refresh requires current or not_applicable freshness")
+
+    entries_outcome = ObservationOutcome.from_dict(_required(working_copy, "entries_outcome"))
+    entries = _list(_required(working_copy, "entries"), "working_copy.entries")
+    entries_limit = _required(working_copy, "entries_limit")
+    truncated = _required(working_copy, "entries_truncated")
+    if not isinstance(entries_limit, int) or isinstance(entries_limit, bool) or entries_limit < 0:
+        raise ContractError("working_copy.entries_limit must be a non-negative integer")
+    if not isinstance(truncated, bool):
+        raise ContractError("working_copy.entries_truncated must be a boolean")
+    if len(entries) > entries_limit:
+        raise ContractError("working_copy.entries exceeds entries_limit")
+    if entries_outcome.state is CollectionState.NOT_REQUESTED and (entries or truncated):
+        raise ContractError("not_requested entries must be empty and untruncated")
+    for item in entries:
+        entry = _object(item, "working_copy.entry")
+        status = _string(_required(entry, "status"), "working_copy.entry.status")
+        if status not in _ENTRY_STATUSES:
+            raise ContractError(f"invalid working-copy entry status: {status!r}")
+        _string(_required(entry, "path"), "working_copy.entry.path")
+        if entry.get("old_path") is not None:
+            _string(entry["old_path"], "working_copy.entry.old_path")
+
+
+def _validate_v2_repository(value: Any) -> None:
+    repository = _object(value, "repository")
+    _string(_required(repository, "repository_key"), "repository.repository_key")
+    RepositoryMode.parse(_required(repository, "mode"))
+    collection = _object(_required(repository, "collection"), "repository.collection")
+    missing = [name for name in V2_REPOSITORY_COMPONENTS if name not in collection]
+    if missing:
+        raise ContractError(f"repository.collection missing components: {', '.join(missing)}")
+    for name in V2_REPOSITORY_COMPONENTS:
+        ObservationOutcome.from_dict(collection[name])
+    for item in _list(_required(repository, "workspaces"), "repository.workspaces"):
+        workspace = _object(item, "workspace")
+        _string(_required(workspace, "workspace_key"), "workspace.workspace_key")
+        _validate_working_copy(_required(workspace, "working_copy"))
+
+
+@dataclass(frozen=True)
+class SnapshotEnvelopeV2:
+    """Snapshot v2 preserving validated native and working-copy evidence."""
+
+    snapshot_id: str
+    captured_at: str
+    collector: Mapping[str, Any]
+    history_store: HistoryStore
+    scan: Mapping[str, Any]
+    repositories: tuple[Mapping[str, Any], ...] = ()
+    schema: ClassVar[str] = SnapshotEnvelope.schema
+    schema_version: ClassVar[int] = 2
+
+    def __post_init__(self) -> None:
+        _string(self.snapshot_id, "snapshot_id")
+        _timestamp(self.captured_at, "captured_at")
+        _object(self.collector, "collector")
+        _object(self.scan, "scan")
+        for repository in self.repositories:
+            _validate_v2_repository(repository)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": self.schema,
+            "schema_version": self.schema_version,
+            "snapshot_id": self.snapshot_id,
+            "captured_at": self.captured_at,
+            "collector": _copy_json(self.collector, "collector"),
+            "history_store": self.history_store.to_dict(),
+            "scan": _copy_json(self.scan, "scan"),
+            "repositories": _copy_json(list(self.repositories), "repositories"),
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> SnapshotEnvelopeV2:
         obj = _envelope(value, cls.schema, cls.schema_version)
         repositories = tuple(
             _object(item, "repository")
@@ -475,7 +699,7 @@ class Event:
         )
 
 
-T = TypeVar("T", SnapshotEnvelope, DeltaEnvelope, PulseEnvelope)
+T = TypeVar("T", SnapshotEnvelope, SnapshotEnvelopeV2, DeltaEnvelope, PulseEnvelope)
 
 
 def _envelope(value: Any, schema: str, version: int) -> Mapping[str, Any]:
@@ -488,11 +712,15 @@ def _envelope(value: Any, schema: str, version: int) -> Mapping[str, Any]:
 
 
 def dumps(
-    document: SnapshotEnvelope | DeltaEnvelope | PulseEnvelope, *, indent: int | None = None
+    document: SnapshotEnvelope | SnapshotEnvelopeV2 | DeltaEnvelope | PulseEnvelope,
+    *,
+    indent: int | None = None,
 ) -> str:
     """Serialize a supported envelope deterministically as JSON."""
-    if not isinstance(document, (SnapshotEnvelope, DeltaEnvelope, PulseEnvelope)):
-        raise ContractError("document must be a SnapshotEnvelope or DeltaEnvelope")
+    if not isinstance(
+        document, (SnapshotEnvelope, SnapshotEnvelopeV2, DeltaEnvelope, PulseEnvelope)
+    ):
+        raise ContractError("document must be a supported history envelope")
     return json.dumps(
         document.to_dict(),
         sort_keys=True,
@@ -501,7 +729,9 @@ def dumps(
     )
 
 
-def loads(value: str | bytes, *, kind: str | None = None) -> SnapshotEnvelope | DeltaEnvelope:
+def loads(
+    value: str | bytes, *, kind: str | None = None
+) -> SnapshotEnvelope | SnapshotEnvelopeV2 | DeltaEnvelope | PulseEnvelope:
     """Parse a snapshot or delta envelope, rejecting unknown major versions."""
     try:
         document = json.loads(value)
@@ -517,7 +747,12 @@ def loads(value: str | bytes, *, kind: str | None = None) -> SnapshotEnvelope | 
     if kind == "pulse" and schema != PulseEnvelope.schema:
         raise ContractError("document schema does not match requested kind")
     if schema == SnapshotEnvelope.schema:
-        return SnapshotEnvelope.from_dict(document)
+        version = _object(document, "document").get("schema_version")
+        if version == SnapshotEnvelope.schema_version:
+            return SnapshotEnvelope.from_dict(document)
+        if version == SnapshotEnvelopeV2.schema_version:
+            return SnapshotEnvelopeV2.from_dict(document)
+        raise ContractError(f"unsupported {SnapshotEnvelope.schema} schema version")
     if schema == DeltaEnvelope.schema:
         return DeltaEnvelope.from_dict(document)
     if schema == PulseEnvelope.schema:
@@ -539,11 +774,17 @@ __all__ = [
     "HistoryBoundaryState",
     "HistoryStore",
     "IntegrityState",
+    "Freshness",
     "ObjectId",
     "Placement",
     "RepositoryMode",
+    "ObservationOutcome",
+    "RefreshState",
     "Retention",
     "SnapshotEnvelope",
+    "SnapshotEnvelopeV2",
+    "V2_REPOSITORY_COMPONENTS",
+    "WorkingCopyState",
     "WriterPolicy",
     "dumps",
     "loads",

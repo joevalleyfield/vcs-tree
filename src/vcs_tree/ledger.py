@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import ContractError
+from .snapshot_schema import SnapshotDocument, parse_snapshot
 
 
 class LedgerError(RuntimeError):
@@ -347,6 +348,19 @@ class HistoryLedger:
         if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
             raise LedgerCorruptError("invalid snapshot index")
         return value
+
+    def read_snapshot_envelopes(self) -> list[SnapshotDocument]:
+        """Read and validate all retained manifests without rewriting the index."""
+        documents = []
+        for entry in self.read_snapshots():
+            manifest = entry.get("manifest")
+            if manifest is None:
+                continue
+            try:
+                documents.append(parse_snapshot(manifest))
+            except ContractError as exc:
+                raise LedgerCorruptError("invalid retained snapshot manifest") from exc
+        return documents
 
 
 __all__ = [

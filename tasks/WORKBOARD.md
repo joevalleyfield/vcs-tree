@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
-> **Status:** Backlog review contract active; pulse dogfood follow-ups pending; cutover pending
-> **Last Sync:** 2026-08-03
+> **Status:** Snapshot-v2 schema complete; working-copy collection active; temporal indexing ready; cutover pending
+> **Last Sync:** 2026-08-04
 
 ## 0. Manual Triage
 
@@ -23,20 +23,33 @@
 - The public pulse now incorporates the completed change-graph integration,
   enrichment, and task/warning layers. Continue dogfooding migration boundaries
   and recurring-warning behavior before cutover.
-- Treat `260803-define-backlog-review-pressure` as the requirements parent for a
-  second recurring instrument: elapsed-time review pressure plus explicit human
-  disposition, distinct from pulse movement.
-- Backlog may rank and strongly surface evidence-backed pressure for downstream
-  coordinating or note-taking roles without writing into repositories. A null
-  root with substantive vision or implementation is immediately
-  `initial_commit_due`; metadata-only initialization remains a gentle intent.
-- Intentionally dormant work should revisit less often, while new movement, a
-  due review, or an external wake signal can bring it back into consideration.
+- Treat `260803-define-backlog-review-pressure` and
+  `planning/mechanical-review-evidence-v1.md` as the corrected requirements
+  source for factual state, elapsed observer clocks, and evidence-completeness
+  predicates used by intelligent review consumers.
+- `vcs-tree` does not rank review pressure, decide health/priority, retain
+  dispositions, or emit semantic reasons such as `initial_commit_due`. It
+  supplies Git-unborn or jj-root-parented working-copy facts and completeness;
+  consumers own the conclusion and any direct follow-up observation.
+- Collection is non-destructive rather than universally non-mutating. Normal jj
+  working-copy snapshotting is a permitted, reported observation side effect;
+  failed refresh falls back to recorded `@` facts with stale/indeterminate
+  filesystem freshness.
+- Temporal evidence is component- and fact-specific: attempts and completeness
+  belong to semantic collection components, while atomic facts retain
+  confirmation intervals and explicit tombstones.
+- The planning parent and snapshot-v2 schema are closed. Working-copy
+  collection is claimed; temporal indexing remains independently ready,
+  followed by predicates, CLI, and black-box workflow validation.
 
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260803-define-backlog-review-pressure` — Define a second recurring vcs-tree instrument that surfaces repositories whose elapsed time and unresolved evidence warrant a conscious review. Pulse answers “what moved?”; backlog...
+- `260803-collect-current-working-copy-evidence` — Make Git and jj working-copy observations current, symmetric where their native models permit it, and explicit about refresh, fallback, paths, conflicts, and component completeness...
+- `260803-evaluate-mechanical-predicates` — Implement the versioned, deterministic predicate document and evaluation service that intelligent consumers use to translate review intent into factual repository queries.
+- `260803-expose-mechanical-query-cli` — Add the public history query command and deterministic summary, audit, and JSON surfaces without adding semantic review ranking or host scheduling.
+- `260803-index-temporal-fact-intervals` — Build a deterministic, rebuildable temporal projection of retained v1/v2 observations so mechanical consumers can query confirmations, invalidations, reappearances, and elapsed obs...
+- `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
@@ -45,14 +58,25 @@
 - `260806-history-completeness-and-bookmarks` — Make incomplete-history reports explainable and mode-aware so downstream dispatchers can distinguish tool gaps from repository movement.
 - `260805-delta-presentation-surfaces` — Separate operator-facing movement summaries from complete machine-readable delta documents while retaining an auditable way to inspect verified no-ops.
 - `260804-history-observability-and-index` — Make long-running history scans observable and expose a supported operator listing of retained snapshots.
+- `260803-version-mechanical-evidence-schema` — Implement the snapshot-v2 model and v1 compatibility boundary required by `planning/mechanical-review-dispatch.md` without changing native collection commands or adding predicate e...
 - `260803-test-nested-repository-features` — Add focused behavioral tests for nested repository discovery, ownership, deduplication, boundaries, and deterministic reporting.
 - `260803-test-nested-repository-e2e` — Exercise nested Git/jj discovery through the installed CLI and confirm the operator-visible output and persisted snapshots match the feature contract.
 - `260803-sync-workboard` — Adapt the proven task-inventory synchronizer from `../toas` so this repository's Open Queue is generated from `tasks/open/`, while recent closures and the relationship view remain ...
 - `260803-separate-publication-hints` — Represented Git refs and jj bookmarks as distinct publication-related authorities that annotate, but never define, jj change movement.
-- `260803-restore-nested-repository-reporting` — Extend the package history workflow to discover and report all eligible nested Git/jj repositories according to the approved discovery semantics.
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
+
+- `260803-version-mechanical-evidence-schema` — added explicit snapshot-v2
+  validation, conservative v1/v2 normalization, native component boundaries,
+  mixed-version retained reads, and a documented working-copy evidence shape;
+  all ten retained v1 manifests open unchanged and 251 tests pass at 100%
+  statement and branch coverage.
+
+- `260803-define-backlog-review-pressure` — corrected the objective from
+  package-owned pressure to mechanical review evidence, selected snapshot v2,
+  grounded gaps in ten retained generations/68 repositories and a real sandbox
+  fallback, and dispatched six bounded engineering tasks.
 
 - `260802-expose-pulse-output-workflow` — added the public pulse CLI, stable
   summary/audit/JSON surfaces, exit behavior, and workflow coverage; 196 tests
