@@ -18,6 +18,7 @@ from typing import Any
 
 from .models import ContractError
 from .snapshot_schema import SnapshotDocument, parse_snapshot
+from .temporal import TEMPORAL_SCHEMA, TEMPORAL_SCHEMA_VERSION, TemporalIndexBuilder
 
 
 class LedgerError(RuntimeError):
@@ -146,6 +147,7 @@ class HistoryLedger:
     _OBJECTS = "objects.json"
     _GENERATIONS = "generations.json"
     _SNAPSHOTS = "snapshots.json"
+    _TEMPORAL = "temporal-facts.json"
 
     def __init__(self, paths: StatePaths, manifest: dict[str, Any], degraded: tuple[str, ...] = ()):
         self.paths = paths
@@ -361,6 +363,31 @@ class HistoryLedger:
             except ContractError as exc:
                 raise LedgerCorruptError("invalid retained snapshot manifest") from exc
         return documents
+
+    def rebuild_temporal_index(self) -> dict[str, Any]:
+        """Replace the disposable temporal projection from authoritative observations."""
+        index = TemporalIndexBuilder().build(
+            self.read_snapshots(), objects=self.read_objects(), store_id=self.store_id
+        )
+        index["source_generation"] = self.generation
+        _atomic_write(self.root / self._TEMPORAL, index)
+        return index
+
+    def read_temporal_index(self) -> dict[str, Any]:
+        """Read a current derived index, rebuilding missing, corrupt, or stale data."""
+        try:
+            value = _read_checked(self.root / self._TEMPORAL)
+            if (
+                not isinstance(value, dict)
+                or value.get("schema") != TEMPORAL_SCHEMA
+                or value.get("schema_version") != TEMPORAL_SCHEMA_VERSION
+                or value.get("store_id") != self.store_id
+                or value.get("source_generation") != self.generation
+            ):
+                raise LedgerCorruptError("invalid temporal fact index")
+            return value
+        except LedgerCorruptError:
+            return self.rebuild_temporal_index()
 
 
 __all__ = [

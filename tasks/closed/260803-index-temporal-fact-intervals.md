@@ -3,12 +3,12 @@ FKA:
 AKA: atomic fact ledger; observation intervals; tombstone index
 Legacy index:
 
-keywords: tooling, blocked, history, facts, intervals, tombstones, indexing
+keywords: tooling, closed, history, facts, intervals, tombstones, indexing
 
 Parent: `260803-define-backlog-review-pressure`
 Depends on: `260803-version-mechanical-evidence-schema`
 Blocks: `260803-evaluate-mechanical-predicates`
-Blocked by: `260803-version-mechanical-evidence-schema`
+Blocked by:
 Related: `260801-build-local-history-ledger`; `260801-calculate-history-deltas`
 
 # Index Temporal Fact Intervals
@@ -83,9 +83,45 @@ resource files.
   native objects lack embedded first-observation fields and proves the derived
   index does not rewrite them.
 - `scripts/check` passes with 100% statement and branch coverage.
+- Added public `TemporalIndexBuilder`, `fact_key`, and `fact_state` APIs with a
+  canonical `vcs-tree.temporal-facts` version-1 document.
+- Stable fact types cover repository/workspace existence, workspace targets,
+  working-copy state and paths, Git refs/targets, jj bookmarks/targets and
+  visible heads, native objects/parents, and jj change/version/parent edges.
+- Focused fixtures prove first observation from an explicit
+  `never_observed/negative_infinity` boundary, repeated confirmation, partial
+  omission without tombstones, complete invalidation, target replacement, and
+  reappearance as a new episode under the same exact fact key.
+- V1 colocated Git-history success plus a more-specific jj graph error leaves
+  the jj fact active and advances only its snapshot-precision attempt clock.
+- Repository-key replacement at one scoped location records a continuity
+  boundary and suppresses cross-boundary tombstones.
+- Added `HistoryLedger.read_temporal_index()` and
+  `rebuild_temporal_index()`. Missing, corrupt, stale, wrong-schema, and
+  wrong-store derived files rebuild from checksummed snapshots and objects;
+  repeated rebuilds are byte-equivalent.
+- The retained-format 34,819-object fixture proves objects remain unchanged and
+  without embedded first-observation fields while referenced object/parent
+  facts receive derived intervals.
+- A read-only trial over the real ten-generation/34,819-object ledger produced
+  18,953 facts and 875 component clocks with no continuity boundaries and no
+  source or ledger mutation.
+- `scripts/check` passed: Ruff format/lint, 307 tests, 100% statement and branch
+  coverage, source distribution, and wheel build.
 
 ## Next Actions
 
-- Claim after `260803-version-mechanical-evidence-schema` closes; it may run in
-  parallel with working-copy collection.
+- Claim `260803-evaluate-mechanical-predicates`; both of its implementation
+  dependencies are now closed.
 
+## Decisions
+
+- Owner: Codex `/root`; claimed 2026-08-04 after schema and working-copy v2
+  collection closed.
+- Exact assertion keys and stable subject slot keys are separate; entity and
+  relationship fact types never share an interval.
+- Complete observations invalidate only absence-sensitive facts owned by that
+  exact component. Native object and parent facts are positive-only because
+  omission cannot prove deletion from the retained object ledger.
+- The derived index stores no build wall clock, so unchanged inputs cannot
+  manufacture confirmations or transitions.

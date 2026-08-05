@@ -250,3 +250,72 @@ def test_invalid_retained_snapshot_manifest_is_corrupt(tmp_path):
     ledger.record_snapshot("invalid", 0, manifest={"schema": "wrong"}, writer_id="writer-a")
     with pytest.raises(LedgerCorruptError):
         ledger.read_snapshot_envelopes()
+
+
+def test_temporal_index_rebuilds_missing_corrupt_and_stale_derived_state(tmp_path):
+    root = tmp_path / "state"
+    ledger = HistoryLedger.create(root, writer_id="writer-a")
+    ledger.append_objects([record("abc")], writer_id="writer-a")
+    generation = ledger.commit_generation(writer_id="writer-a")
+    store = HistoryStore(ledger.store_id, generation, writer_id="writer-a")
+    v1 = SnapshotEnvelope("v1", "2026-08-04T12:00:00Z", {}, store, {"root": "/scope"}, ())
+    ledger.record_snapshot("v1", generation, manifest=v1.to_dict(), writer_id="writer-a")
+
+    generation = ledger.commit_generation(writer_id="writer-a")
+    store = HistoryStore(ledger.store_id, generation, writer_id="writer-a")
+    attempted = "2026-08-04T12:01:00Z"
+    complete = {"state": "complete", "attempted_at": attempted, "errors": []}
+    repository = {
+        "repository_key": "repo-1",
+        "mode": "git",
+        "locations": [{"path": "/scope/repo"}],
+        "collection": {name: complete for name in V2_REPOSITORY_COMPONENTS},
+        "workspaces": [],
+        "refs": [],
+        "roots": [],
+    }
+    v2 = SnapshotEnvelopeV2(
+        "v2",
+        attempted,
+        {},
+        store,
+        {"root": "/scope", "outcome": {"state": "complete", "errors": []}},
+        (repository,),
+    )
+    ledger.record_snapshot("v2", generation, manifest=v2.to_dict(), writer_id="writer-a")
+    object_bytes = (root / "objects.json").read_bytes()
+
+    first = ledger.read_temporal_index()
+    canonical = (root / ledger._TEMPORAL).read_bytes()
+    assert [item["schema_version"] for item in first["source_snapshots"]] == [1, 2]
+    assert ledger.read_temporal_index() == first
+    assert ledger.rebuild_temporal_index() == first
+    assert (root / ledger._TEMPORAL).read_bytes() == canonical
+
+    (root / ledger._TEMPORAL).write_text("broken", encoding="utf-8")
+    assert ledger.read_temporal_index() == first
+    (root / ledger._TEMPORAL).unlink()
+    assert ledger.read_temporal_index() == first
+
+    stale = json.loads(json.dumps(first))
+    stale["source_generation"] = -1
+    ledger_module._atomic_write(root / ledger._TEMPORAL, stale)
+    assert ledger.read_temporal_index() == first
+    assert (root / "objects.json").read_bytes() == object_bytes
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"schema": "wrong"},
+        {"schema_version": 99},
+        {"store_id": "wrong"},
+        {"source_generation": -1},
+    ],
+)
+def test_invalid_temporal_index_metadata_rebuilds(change, tmp_path):
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    expected = ledger.rebuild_temporal_index()
+    invalid = {**expected, **change}
+    ledger_module._atomic_write(ledger.root / ledger._TEMPORAL, invalid)
+    assert ledger.read_temporal_index() == expected

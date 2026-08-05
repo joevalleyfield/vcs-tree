@@ -49,6 +49,15 @@ from .models import (
 from .pulse import PulseOrchestrator, PulseSelectionError
 from .snapshot import SnapshotCollector, SnapshotResult, discover_repository_roots
 from .snapshot_schema import component_comparison, normalize_snapshot, parse_snapshot
+from .temporal import (
+    TEMPORAL_SCHEMA,
+    TEMPORAL_SCHEMA_VERSION,
+    AtomicFact,
+    ComponentObservation,
+    TemporalIndexBuilder,
+    fact_key,
+    fact_state,
+)
 
 __all__ = [
     "Backend",
@@ -81,6 +90,13 @@ __all__ = [
     "component_comparison",
     "normalize_snapshot",
     "parse_snapshot",
+    "TEMPORAL_SCHEMA",
+    "TEMPORAL_SCHEMA_VERSION",
+    "AtomicFact",
+    "ComponentObservation",
+    "TemporalIndexBuilder",
+    "fact_key",
+    "fact_state",
     "HistoryLedger",
     "LedgerCorruptError",
     "LedgerError",

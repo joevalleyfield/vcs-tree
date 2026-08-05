@@ -1,7 +1,7 @@
 # History Snapshot Contract v1
 
 Status: accepted baseline; jj working-copy observation policy corrected,
-temporal-evidence schema follow-up pending
+derived temporal-evidence index implemented separately
 
 Schema identifier: `vcs-tree.history-snapshot`
 
@@ -230,18 +230,19 @@ An empty complete component and an errored component are different states.
 
 ### Temporal collection and fact evidence
 
-The next compatible snapshot/ledger extension MUST separate temporal
-collection metadata from atomic fact validity. The following fields are
-requirements for that extension, not additions to the currently implemented v1
-wire shape until the versioning decision is settled.
+The derived `vcs-tree.temporal-facts` contract separates temporal collection
+metadata from atomic fact validity. These fields are not additions to the
+immutable snapshot-v1 wire shape.
 
 `last_attempted_at` records the latest attempt regardless of outcome.
 `complete_as_of` records the latest complete observation of that semantic
 component. A partial or error observation advances `last_attempted_at` but does
 not advance `complete_as_of`.
 
-Existing v1 records lack these fields and therefore have unknown temporal
-collection metadata; readers MUST NOT replace it with `captured_at`. A
+Existing v1 records lack per-component attempt timestamps. The compatibility
+normalizer uses snapshot `captured_at` as coarse observer time only for
+component outcomes and positive facts actually retained, with explicit
+`snapshot` precision. Absent v2 facts remain `unknown` or `not_requested`. A
 component that has never completed uses the explicit state `never_observed` in
 a mechanical predicate result. That state compares as negative infinity for
 elapsed-threshold evaluation but is not serialized as a fabricated timestamp.

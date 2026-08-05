@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Snapshot-v2 working-copy collection complete; temporal indexing ready; cutover pending
+> **Status:** Temporal indexing complete; mechanical predicates ready; cutover pending
 > **Last Sync:** 2026-08-04
 
 ## 0. Manual Triage
@@ -38,16 +38,15 @@
 - Temporal evidence is component- and fact-specific: attempts and completeness
   belong to semantic collection components, while atomic facts retain
   confirmation intervals and explicit tombstones.
-- The planning parent, snapshot-v2 schema, and current working-copy collection
-  are closed. Temporal indexing is ready, followed by predicates, CLI, and
-  black-box workflow validation.
+- The planning parent, snapshot-v2 schema, current working-copy collection, and
+  temporal indexing are closed. Mechanical predicate evaluation is ready,
+  followed by CLI and black-box workflow validation.
 
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
 - `260803-evaluate-mechanical-predicates` — Implement the versioned, deterministic predicate document and evaluation service that intelligent consumers use to translate review intent into factual repository queries.
 - `260803-expose-mechanical-query-cli` — Add the public history query command and deterministic summary, audit, and JSON surfaces without adding semantic review ranking or host scheduling.
-- `260803-index-temporal-fact-intervals` — Build a deterministic, rebuildable temporal projection of retained v1/v2 observations so mechanical consumers can query confirmations, invalidations, reappearances, and elapsed obs...
 - `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
 <!-- WORKBOARD:OPEN:END -->
 
@@ -65,6 +64,12 @@
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
+
+- `260803-index-temporal-fact-intervals` — added a rebuildable canonical index
+  with component clocks, stable atomic fact keys, confirmation/tombstone/
+  reappearance episodes, conservative mixed-v1/v2 handling, continuity
+  boundaries, and automatic derived-state recovery; the real ten-generation
+  corpus projected 18,953 facts, and 307 tests pass at 100% coverage.
 
 - `260803-collect-current-working-copy-evidence` — switched production to
   snapshot v2, added non-locking Git status and jj refresh/fallback/path
