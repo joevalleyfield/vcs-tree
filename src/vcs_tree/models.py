@@ -144,6 +144,25 @@ def _copy_json(value: Any, name: str) -> Any:
     return copied
 
 
+def _v1_repository_view(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Strip v2 observation provenance from the legacy comparison presentation."""
+    repository = _copy_json(value, "repository")
+    for workspace in repository.get("workspaces", []):
+        working_copy = workspace.get("working_copy")
+        if not isinstance(working_copy, dict):
+            continue
+        for name in (
+            "outcome",
+            "refresh",
+            "freshness",
+            "entries_outcome",
+            "entries_limit",
+            "entries_truncated",
+        ):
+            working_copy.pop(name, None)
+    return repository
+
+
 @dataclass(frozen=True)
 class ObjectId:
     algorithm: str
@@ -362,6 +381,17 @@ class SnapshotEnvelope:
 
     @classmethod
     def from_dict(cls, value: Any) -> SnapshotEnvelope:
+        candidate = _object(value, "document")
+        if candidate.get("schema_version") == 2:
+            versioned = SnapshotEnvelopeV2.from_dict(candidate)
+            return cls(
+                versioned.snapshot_id,
+                versioned.captured_at,
+                versioned.collector,
+                versioned.history_store,
+                versioned.scan,
+                tuple(_v1_repository_view(item) for item in versioned.repositories),
+            )
         obj = _envelope(value, cls.schema, cls.schema_version)
         repositories = tuple(
             _object(item, "repository")
@@ -442,9 +472,12 @@ def _validate_working_copy(value: Any) -> None:
         raise ContractError("skipped refresh requires stale or unknown freshness")
     if refresh_state is RefreshState.NOT_APPLICABLE and freshness not in {
         Freshness.CURRENT,
+        Freshness.UNKNOWN,
         Freshness.NOT_APPLICABLE,
     }:
-        raise ContractError("not_applicable refresh requires current or not_applicable freshness")
+        raise ContractError(
+            "not_applicable refresh requires current, unknown, or not_applicable freshness"
+        )
 
     entries_outcome = ObservationOutcome.from_dict(_required(working_copy, "entries_outcome"))
     entries = _list(_required(working_copy, "entries"), "working_copy.entries")
@@ -485,7 +518,7 @@ def _validate_v2_repository(value: Any) -> None:
 
 
 @dataclass(frozen=True)
-class SnapshotEnvelopeV2:
+class SnapshotEnvelopeV2(Mapping[str, Any]):
     """Snapshot v2 preserving validated native and working-copy evidence."""
 
     snapshot_id: str
@@ -516,6 +549,15 @@ class SnapshotEnvelopeV2:
             "scan": _copy_json(self.scan, "scan"),
             "repositories": _copy_json(list(self.repositories), "repositories"),
         }
+
+    def __getitem__(self, key: str) -> Any:
+        return self.to_dict()[key]
+
+    def __iter__(self):
+        return iter(self.to_dict())
+
+    def __len__(self) -> int:
+        return len(self.to_dict())
 
     @classmethod
     def from_dict(cls, value: Any) -> SnapshotEnvelopeV2:

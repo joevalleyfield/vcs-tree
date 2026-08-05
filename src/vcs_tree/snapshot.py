@@ -21,7 +21,8 @@ from .models import (
     HistoryBoundaryState,
     HistoryStore,
     IntegrityState,
-    SnapshotEnvelope,
+    ObservationOutcome,
+    SnapshotEnvelopeV2,
 )
 
 AdapterFactory = Callable[[Path], Any]
@@ -29,7 +30,7 @@ AdapterFactory = Callable[[Path], Any]
 
 @dataclass(frozen=True)
 class SnapshotResult:
-    envelope: SnapshotEnvelope
+    envelope: SnapshotEnvelopeV2
     generation: int
 
 
@@ -91,14 +92,86 @@ def _workspace_key(workspace: dict[str, Any]) -> str:
 
 
 def _merge_workspaces(
-    git: GitObservation | None, jj: JjObservation | None
+    git: GitObservation | None, jj: JjObservation | None, attempted_at: str
 ) -> tuple[dict[str, Any], ...]:
     """Merge colocated Git worktrees and jj workspaces by canonical path."""
     merged: dict[str, dict[str, Any]] = {}
-    for workspace in [*(git.workspaces if git else ()), *(jj.workspaces if jj else ())]:
-        key = _workspace_key(workspace)
-        merged[key] = {**merged.get(key, {}), **workspace}
+    for observation in (git, jj):
+        if observation is None:
+            continue
+        for workspace in observation.workspaces:
+            item = dict(workspace)
+            working_copy = item.get("working_copy")
+            if not isinstance(working_copy, dict) or "outcome" not in working_copy:
+                state = (
+                    working_copy.get("state", "unknown")
+                    if isinstance(working_copy, dict)
+                    else "unknown"
+                )
+                has_evidence = isinstance(working_copy, dict)
+                outcome = (
+                    {
+                        "state": "complete",
+                        "attempted_at": observation.observed_at or attempted_at,
+                        "errors": [],
+                    }
+                    if has_evidence
+                    else _not_requested()
+                )
+                item["working_copy"] = {
+                    "state": state,
+                    "recorded_state": state,
+                    "outcome": outcome,
+                    "refresh": {"state": "not_applicable", "errors": []},
+                    "freshness": "current" if has_evidence else "not_applicable",
+                    "entries_outcome": _not_requested(),
+                    "entries_limit": 0,
+                    "entries_truncated": False,
+                    "entries": [],
+                }
+            key = _workspace_key(item)
+            merged[key] = {**merged.get(key, {}), **item}
+    for key, workspace in merged.items():
+        workspace.setdefault("workspace_key", key)
     return tuple(merged[key] for key in sorted(merged))
+
+
+def _observation_outcome(outcome: CollectionOutcome, attempted_at: str) -> dict[str, Any]:
+    return ObservationOutcome(
+        outcome.state,
+        None if outcome.state is CollectionState.NOT_REQUESTED else attempted_at,
+        outcome.errors,
+    ).to_dict()
+
+
+def _not_requested() -> dict[str, Any]:
+    return ObservationOutcome(CollectionState.NOT_REQUESTED).to_dict()
+
+
+def _native_outcome(
+    observation: GitObservation | JjObservation | None,
+    name: str,
+    fallback_at: str,
+) -> dict[str, Any]:
+    if observation is None:
+        return _not_requested()
+    outcome = observation.collection.get(name)
+    if outcome is None:
+        return _not_requested()
+    return _observation_outcome(outcome, observation.observed_at or fallback_at)
+
+
+def _combine_outcomes(outcomes: list[CollectionOutcome]) -> CollectionOutcome:
+    if not outcomes:
+        return CollectionOutcome(CollectionState.NOT_REQUESTED)
+    errors = tuple(error for outcome in outcomes for error in outcome.errors)
+    if any(outcome.state is CollectionState.ERROR for outcome in outcomes):
+        return CollectionOutcome(CollectionState.ERROR, errors)
+    if any(outcome.state is CollectionState.PARTIAL for outcome in outcomes):
+        return CollectionOutcome(CollectionState.PARTIAL, errors)
+    if all(outcome.state is CollectionState.NOT_REQUESTED for outcome in outcomes):
+        return CollectionOutcome(CollectionState.NOT_REQUESTED)
+    return CollectionOutcome(CollectionState.COMPLETE)
 
 
 def _change_graph(jj: JjObservation | None) -> dict[str, Any] | None:
@@ -182,6 +255,7 @@ class SnapshotCollector:
 
     def collect(self, path: str | Path) -> SnapshotResult:
         root = Path(path).resolve()
+        captured_at = self.clock()
         self.progress(f"discovering repositories under {root}")
         roots, discovery_errors = _discover(root)
         self.progress(f"discovered {len(roots)} repository root(s)")
@@ -200,7 +274,11 @@ class SnapshotCollector:
                 else None
             )
             repository = self._repository(
-                root, git_observation, jj_observation, repository_root=repository_root
+                root,
+                git_observation,
+                jj_observation,
+                repository_root=repository_root,
+                captured_at=captured_at,
             )
             objects.extend(
                 _as_objects(repository["repository_key"], repository.pop("_history_objects"))
@@ -219,9 +297,9 @@ class SnapshotCollector:
             CollectionState.PARTIAL if discovery_errors else CollectionState.COMPLETE,
             discovery_errors,
         )
-        envelope = SnapshotEnvelope(
+        envelope = SnapshotEnvelopeV2(
             self.snapshot_id_factory(),
-            self.clock(),
+            captured_at,
             {"name": "vcs-tree", "version": "0.1.0"},
             store,
             {"root": str(root), "outcome": scan_outcome.to_dict()},
@@ -242,8 +320,10 @@ class SnapshotCollector:
         git: GitObservation | None,
         jj: JjObservation | None,
         repository_root: Path | None = None,
+        captured_at: str | None = None,
     ) -> dict[str, Any]:
         repository_root = repository_root or root
+        captured_at = captured_at or self.clock()
         mode = "colocated" if git and jj else "git" if git else "jj"
         continuity = str(repository_root)
         repository_key = self.ledger.repository_key(continuity, writer_id=self.ledger.writer_id)
@@ -267,7 +347,7 @@ class SnapshotCollector:
                 }
                 for record in history
             ]
-        workspaces = _merge_workspaces(git, jj)
+        workspaces = _merge_workspaces(git, jj, captured_at)
         git_refs = git.refs if git else ()
         jj_refs = jj.bookmarks if jj else ()
         refs = _dedupe_dicts(
@@ -285,7 +365,7 @@ class SnapshotCollector:
             if current.get("object_id"):
                 roots.append(current["object_id"])
         roots = list(_dedupe_dicts(roots, lambda item: f"{item['algorithm']}:{item['value']}"))
-        collection = self._collection(git, jj)
+        collection = self._collection(git, jj, captured_at)
         boundary = self._boundary(git, jj)
         return {
             "repository_key": repository_key,
@@ -319,6 +399,7 @@ class SnapshotCollector:
         self,
         git: GitObservation | None,
         jj: JjObservation | None,
+        captured_at: str,
     ) -> dict[str, dict[str, Any]]:
         result: dict[str, CollectionOutcome] = {}
         for observation in (git, jj):
@@ -327,18 +408,41 @@ class SnapshotCollector:
         if git and jj:
             result["workspaces"] = jj.collection.get("workspaces", _complete())
             result["refs"] = git.collection.get("refs", _complete())
-            result["history"] = CollectionOutcome(
-                CollectionState.PARTIAL
-                if any(
-                    item.state is CollectionState.PARTIAL
-                    for item in (
-                        git.collection.get("history", _complete()),
-                        jj.collection.get("history", _complete()),
-                    )
-                )
-                else CollectionState.COMPLETE
+            result["history"] = _combine_outcomes(
+                [
+                    git.collection.get("history", _complete()),
+                    jj.collection.get("history", _complete()),
+                ]
             )
-        return {name: outcome.to_dict() for name, outcome in sorted(result.items())}
+        presentation = {name: outcome.to_dict() for name, outcome in sorted(result.items())}
+        identity = _combine_outcomes(
+            [
+                observation.collection["identity"]
+                for observation in (git, jj)
+                if observation is not None and "identity" in observation.collection
+            ]
+        )
+        path_outcome = _combine_outcomes(
+            [
+                observation.collection["path_evidence"]
+                for observation in (git, jj)
+                if observation is not None and "path_evidence" in observation.collection
+            ]
+        )
+        presentation.update(
+            {
+                "identity": _observation_outcome(identity, captured_at),
+                "git_worktrees": _native_outcome(git, "workspaces", captured_at),
+                "jj_workspaces": _native_outcome(jj, "workspaces", captured_at),
+                "git_refs": _native_outcome(git, "refs", captured_at),
+                "jj_bookmarks": _native_outcome(jj, "bookmarks", captured_at),
+                "jj_visible_heads": _native_outcome(jj, "visible_heads", captured_at),
+                "git_history": _native_outcome(git, "history", captured_at),
+                "jj_history": _native_outcome(jj, "history", captured_at),
+                "path_evidence": _observation_outcome(path_outcome, captured_at),
+            }
+        )
+        return dict(sorted(presentation.items()))
 
     def _boundary(self, git: GitObservation | None, jj: JjObservation | None) -> HistoryBoundary:
         boundaries = [item.history_boundary for item in (git, jj) if item]

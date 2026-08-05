@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -16,8 +17,14 @@ from .models import (
     HistoryBoundaryState,
     ObjectId,
 )
+from .working_copy import parse_git_status
 
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
+Clock = Callable[[], str]
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 @dataclass(frozen=True)
@@ -31,6 +38,7 @@ class GitObservation:
     history: tuple[dict, ...]
     history_boundary: HistoryBoundary
     collection: dict[str, CollectionOutcome]
+    observed_at: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -41,6 +49,7 @@ class GitObservation:
             "history": list(self.history),
             "history_boundary": self.history_boundary.to_dict(),
             "collection": {name: outcome.to_dict() for name, outcome in self.collection.items()},
+            "observed_at": self.observed_at,
         }
 
 
@@ -129,10 +138,20 @@ def _parse_worktrees(output: str) -> tuple[dict, ...]:
 class GitAdapter:
     """Collect selected Git surfaces without changing the repository."""
 
-    def __init__(self, path: str | Path, *, timeout: float = 8.0, runner: Runner | None = None):
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        timeout: float = 8.0,
+        runner: Runner | None = None,
+        clock: Clock = _now,
+        entry_limit: int = 256,
+    ):
         self.path = Path(path)
         self.timeout = timeout
         self._runner = runner or self._run
+        self.observed_at = clock()
+        self.entry_limit = entry_limit
 
     def _run(self, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -166,6 +185,7 @@ class GitAdapter:
                 (),
                 HistoryBoundary(HistoryBoundaryState.UNKNOWN),
                 {"identity": _outcome(CollectionState.ERROR, root_error)},
+                self.observed_at,
             )
         root = Path(root_output.strip())
         if root.resolve() != self.path.resolve():
@@ -182,9 +202,11 @@ class GitAdapter:
                 (),
                 HistoryBoundary(HistoryBoundaryState.UNKNOWN),
                 {"identity": _outcome(CollectionState.ERROR, error)},
+                self.observed_at,
             )
         identity = _outcome(CollectionState.COMPLETE)
         workspaces, workspace_outcome = self._workspaces()
+        working_copy_outcome, path_outcome = self._working_copy_outcomes(workspaces)
         refs, ref_outcome = self._refs()
         history, history_outcome, boundary = self._history(refs)
         return GitObservation(
@@ -199,7 +221,10 @@ class GitAdapter:
                 "workspaces": workspace_outcome,
                 "refs": ref_outcome,
                 "history": history_outcome,
+                "working_copy": working_copy_outcome,
+                "path_evidence": path_outcome,
             },
+            self.observed_at,
         )
 
     def _workspaces(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
@@ -208,29 +233,117 @@ class GitAdapter:
             return (), _outcome(CollectionState.ERROR, error)
         records = _parse_worktrees(output)
         if not records:
-            status, status_error = self._call(("status", "--porcelain=v1"), "git.working_copy")
-            if status_error:
-                return (), _outcome(CollectionState.PARTIAL, status_error)
             records = (
                 {
                     "path": str(self.path),
                     "head": None,
                     "branch": None,
                     "role": "primary",
-                    "status": status,
                 },
             )
-        else:
-            for record in records:
-                if record["path"] == str(self.path):
-                    status, status_error = self._call(
-                        ("status", "--porcelain=v1"), "git.working_copy"
-                    )
-                    record["working_copy"] = {
-                        "state": "unknown" if status_error else "dirty" if status else "clean",
-                        "status": status,
-                    }
+        for record in records:
+            if Path(record["path"]).resolve() == self.path.resolve():
+                record["working_copy"] = self._working_copy()
+            else:
+                record["working_copy"] = self._unobserved_working_copy()
         return records, _outcome(CollectionState.COMPLETE)
+
+    def _working_copy(self) -> dict:
+        output, error = self._call(
+            (
+                "--no-optional-locks",
+                "status",
+                "--porcelain=v2",
+                "--branch",
+                "-z",
+                "--untracked-files=all",
+            ),
+            "git.working_copy",
+        )
+        refresh = {"state": "not_applicable", "errors": []}
+        if error:
+            outcome = _outcome(CollectionState.ERROR, error).to_dict()
+            outcome["attempted_at"] = self.observed_at
+            return {
+                "state": "unreadable",
+                "recorded_state": "unreadable",
+                "unborn": None,
+                "current": None,
+                "outcome": outcome,
+                "refresh": refresh,
+                "freshness": "unknown",
+                "entries_outcome": outcome,
+                "entries_limit": self.entry_limit,
+                "entries_truncated": False,
+                "entries": [],
+            }
+        try:
+            parsed = parse_git_status(output, limit=self.entry_limit)
+        except ValueError as exc:
+            parse_error = _error("parse_error", "git.working_copy", str(exc))
+            outcome = _outcome(CollectionState.PARTIAL, parse_error).to_dict()
+            outcome["attempted_at"] = self.observed_at
+            return {
+                "state": "unknown",
+                "recorded_state": "unknown",
+                "unborn": None,
+                "current": None,
+                "outcome": outcome,
+                "refresh": refresh,
+                "freshness": "unknown",
+                "entries_outcome": outcome,
+                "entries_limit": self.entry_limit,
+                "entries_truncated": False,
+                "entries": [],
+            }
+        outcome = _outcome(CollectionState.COMPLETE).to_dict()
+        outcome["attempted_at"] = self.observed_at
+        current = (
+            {"object_id": {"algorithm": "sha1", "value": parsed.current_object.lower()}}
+            if parsed.current_object
+            else None
+        )
+        return {
+            "state": parsed.state,
+            "recorded_state": parsed.state,
+            "unborn": parsed.unborn,
+            "current": current,
+            "outcome": outcome,
+            "refresh": refresh,
+            "freshness": "current",
+            "entries_outcome": outcome,
+            "entries_limit": self.entry_limit,
+            "entries_truncated": parsed.truncated,
+            "entries": list(parsed.entries),
+        }
+
+    def _unobserved_working_copy(self) -> dict:
+        return {
+            "state": "unknown",
+            "recorded_state": "unknown",
+            "unborn": None,
+            "current": None,
+            "outcome": {"state": "not_requested", "errors": []},
+            "refresh": {"state": "not_applicable", "errors": []},
+            "freshness": "not_applicable",
+            "entries_outcome": {"state": "not_requested", "errors": []},
+            "entries_limit": self.entry_limit,
+            "entries_truncated": False,
+            "entries": [],
+        }
+
+    def _working_copy_outcomes(
+        self, workspaces: tuple[dict, ...]
+    ) -> tuple[CollectionOutcome, CollectionOutcome]:
+        for workspace in workspaces:
+            working_copy = workspace.get("working_copy", {})
+            if working_copy.get("outcome", {}).get("state") != "not_requested":
+                return (
+                    CollectionOutcome.from_dict(working_copy["outcome"]),
+                    CollectionOutcome.from_dict(working_copy["entries_outcome"]),
+                )
+        not_requested = _outcome(CollectionState.NOT_REQUESTED)
+        return not_requested, not_requested
 
     def _refs(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         format_string = "%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)"

@@ -2,6 +2,7 @@ import copy
 
 import pytest
 
+import vcs_tree.models as models_module
 import vcs_tree.snapshot_schema as schema_module
 from vcs_tree.models import (
     V2_REPOSITORY_COMPONENTS,
@@ -263,7 +264,7 @@ def snapshot_v2_from(repository):
         ("failed", "current", None),
         ("failed", "unknown", {"errors": []}),
         ("skipped", "current", None),
-        ("not_applicable", "unknown", None),
+        ("not_applicable", "recorded_maybe_stale", None),
         ("performed", "current", {"errors": [ERROR_DICT]}),
         ("not_applicable", "current", {"attempted_at": CAPTURED}),
         ("not_applicable", "current", {"errors": [ERROR_DICT]}),
@@ -323,3 +324,19 @@ def test_v2_does_not_mutate_source_mapping_during_round_trip():
     original = copy.deepcopy(repository)
     snapshot_v2_from(repository).to_dict()
     assert repository == original
+
+
+def test_v2_mapping_and_legacy_presentation_view_keep_facts_not_provenance():
+    document = snapshot_v2("git")
+    assert document["schema_version"] == 2
+    assert len(document) == len(dict(document))
+    legacy = SnapshotEnvelope.from_dict(document.to_dict())
+    working_copy = legacy.repositories[0]["workspaces"][0]["working_copy"]
+    assert working_copy["recorded_state"] == "dirty"
+    assert working_copy["entries"] == [{"status": "modified", "path": "README.md"}]
+    assert "attempted_at" not in working_copy
+    assert "outcome" not in working_copy
+    view = models_module._v1_repository_view({"workspaces": [{"working_copy": None}]})
+    assert view["workspaces"][0]["working_copy"] is None
+    with pytest.raises(ContractError):
+        SnapshotEnvelopeV2.from_dict({**document.to_dict(), "schema_version": 1})

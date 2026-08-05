@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 
 import pytest
@@ -60,6 +61,8 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     responses = iter(
         [
             completed(str(tmp_path)),
+            completed("ABC\x00change\x00P Q\x00false\x00false\x00summary\n"),
+            completed("M file\n"),
             completed("default\x00" + str(tmp_path) + "\x00ABC\x00change\x00dirty\x00A:1\n\n"),
             completed("topic\x00origin\x00normal\x00ABC\x00\x00\x00ahead\n\n"),
             completed("ABC\x00change\n\n"),
@@ -70,6 +73,8 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     assert observation.root == tmp_path
     assert observation.store_hint == "../shared/.jj/repo"
     assert observation.workspaces[0]["current"]["change_id"] == "change"
+    assert observation.workspaces[0]["working_copy"]["freshness"] == "current"
+    assert observation.workspaces[0]["working_copy"]["entries"][0]["path"] == "file"
     assert observation.bookmarks[0]["targets"][0]["value"] == "abc"
     assert observation.visible_heads[0]["authority"] == "visible_head"
     assert observation.history[1]["kind"] == "virtual_root"
@@ -178,3 +183,143 @@ def test_store_hint_and_default_runner(monkeypatch, tmp_path):
     pointer.mkdir()
     (pointer / "repo").write_text("\n", encoding="utf-8")
     assert JjAdapter(tmp_path)._store_hint().endswith(".jj/repo")
+
+
+def test_refresh_failure_falls_back_to_recorded_working_copy(tmp_path):
+    calls = []
+    responses = iter(
+        [
+            completed("", "refresh denied", 1),
+            completed(f"ABC\x00change\x00{NULL_COMMIT}\x00false\x00false\x00draft\n"),
+            completed("M file.txt\n"),
+        ]
+    )
+
+    def runner(command):
+        calls.append(command)
+        return next(responses)
+
+    value, outcome, paths = JjAdapter(
+        tmp_path, runner=runner, clock=lambda: "2026-08-04T12:00:00Z"
+    )._working_copy()
+    assert value["refresh"]["state"] == "failed"
+    assert value["freshness"] == "recorded_maybe_stale"
+    assert value["current"]["change_id"] == "change"
+    assert value["parents"][0]["value"] == NULL_COMMIT
+    assert value["entries"][0]["path"] == "file.txt"
+    assert outcome.state is CollectionState.COMPLETE
+    assert paths.state is CollectionState.COMPLETE
+    assert "--ignore-working-copy" not in calls[0]
+    assert "--ignore-working-copy" in calls[1]
+
+
+def test_refresh_and_fallback_fail_with_separate_errors(tmp_path):
+    responses = iter([completed("", "refresh", 1), completed("", "fallback", 2)])
+    value, outcome, paths = JjAdapter(
+        tmp_path, runner=lambda _command: next(responses)
+    )._working_copy()
+    assert value["recorded_state"] == "unreadable"
+    assert [error.exit_code for error in outcome.errors] == [1, 2]
+    assert [error.stage for error in outcome.errors] == [
+        "jj.working_copy_refresh",
+        "jj.working_copy_fallback",
+    ]
+    assert value["refresh"]["errors"][0]["message"] == "refresh"
+    assert paths.state is CollectionState.NOT_REQUESTED
+
+
+@pytest.mark.parametrize(
+    ("empty", "conflict", "state"),
+    [("true", "false", "clean"), ("false", "false", "dirty"), ("false", "true", "conflicted")],
+)
+def test_virtual_root_parent_supplies_initial_boundary_premises(tmp_path, empty, conflict, state):
+    responses = iter(
+        [
+            completed(f"ABC\x00change\x00{NULL_COMMIT}\x00{empty}\x00{conflict}\x00draft\n"),
+            completed(""),
+        ]
+    )
+    value, outcome, _paths = JjAdapter(
+        tmp_path, runner=lambda _command: next(responses)
+    )._working_copy()
+    assert value["parents"] == [{"algorithm": "jj", "value": NULL_COMMIT}]
+    assert value["recorded_state"] == state
+    assert outcome.state is CollectionState.COMPLETE
+
+
+def test_path_failure_and_parse_failure_remain_independent(tmp_path):
+    current = "ABC\x00change\x00P\x00false\x00false\x00draft\n"
+    failed = JjAdapter(
+        tmp_path,
+        runner=lambda command: (
+            completed(current) if command[0] == "log" else completed("", "diff failed", 1)
+        ),
+    )._working_copy()
+    assert failed[0]["recorded_state"] == "dirty"
+    assert failed[1].state is CollectionState.COMPLETE
+    assert failed[2].state is CollectionState.ERROR
+
+    malformed = JjAdapter(
+        tmp_path,
+        runner=lambda command: (
+            completed(current) if command[0] == "log" else completed("bad summary\n")
+        ),
+    )._working_copy()
+    assert malformed[2].state is CollectionState.PARTIAL
+
+
+def test_malformed_refresh_read_uses_no_refresh_fallback(tmp_path):
+    responses = iter(
+        [
+            completed("bad"),
+            completed("ABC\x00change\x00P\x00true\x00false\x00draft\n"),
+            completed(""),
+        ]
+    )
+    value, outcome, _paths = JjAdapter(
+        tmp_path, runner=lambda _command: next(responses)
+    )._working_copy()
+    assert value["refresh"]["errors"][0]["kind"] == "parse_error"
+    assert value["refresh"]["errors"][0]["stage"] == "jj.working_copy_refresh"
+    assert value["freshness"] == "recorded_maybe_stale"
+    assert outcome.state is CollectionState.COMPLETE
+
+
+def test_linked_workspace_is_recorded_but_refresh_is_skipped(tmp_path):
+    adapter = JjAdapter(tmp_path, clock=lambda: "2026-08-04T12:00:00Z")
+    primary = {"workspace_key": "default", "path": str(tmp_path)}
+    linked = {
+        "workspace_key": "linked",
+        "path": str(tmp_path / "linked"),
+        "working_copy": {"state": "unknown"},
+    }
+    current = {"current": {"object_id": {"value": "abc"}}, "parents": []}
+    attached = adapter._attach_working_copy((primary, linked), current)
+    assert attached[0]["working_copy"] is current
+    assert attached[1]["working_copy"]["refresh"]["state"] == "skipped"
+    assert attached[1]["working_copy"]["freshness"] == "recorded_maybe_stale"
+
+
+@pytest.mark.skipif(shutil.which("jj") is None, reason="jj is not installed")
+def test_real_jj_observation_snapshots_edited_file_into_current_change(tmp_path):
+    repository = tmp_path / "repo"
+    subprocess.run(
+        ["jj", "git", "init", str(repository)], check=True, text=True, capture_output=True
+    )
+    before = subprocess.run(
+        ["jj", "log", "-r", "@", "--no-graph", "--ignore-working-copy", "-T", "commit_id"],
+        cwd=repository,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout
+    (repository / "draft.txt").write_text("draft\n", encoding="utf-8")
+
+    observation = JjAdapter(repository).collect()
+    working_copy = observation.workspaces[0]["working_copy"]
+    assert working_copy["refresh"]["state"] == "performed"
+    assert working_copy["freshness"] == "current"
+    assert working_copy["recorded_state"] == "dirty"
+    assert working_copy["current"]["object_id"]["value"] != before
+    assert {item["path"] for item in working_copy["entries"]} == {"draft.txt"}
+    assert observation.collection["history"].state is CollectionState.COMPLETE

@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -15,9 +16,15 @@ from .models import (
     HistoryBoundary,
     HistoryBoundaryState,
 )
+from .working_copy import parse_jj_current, parse_jj_summary
 
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
+Clock = Callable[[], str]
 NULL_COMMIT = "0" * 40
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 @dataclass(frozen=True)
@@ -32,6 +39,7 @@ class JjObservation:
     history: tuple[dict, ...]
     history_boundary: HistoryBoundary
     collection: dict[str, CollectionOutcome]
+    observed_at: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -43,6 +51,7 @@ class JjObservation:
             "history": list(self.history),
             "history_boundary": self.history_boundary.to_dict(),
             "collection": {name: outcome.to_dict() for name, outcome in self.collection.items()},
+            "observed_at": self.observed_at,
         }
 
 
@@ -131,10 +140,20 @@ def _parse_workspace(line: str) -> dict:
 class JjAdapter:
     """Collect jj-native surfaces without changing the repository."""
 
-    def __init__(self, path: str | Path, *, timeout: float = 8.0, runner: Runner | None = None):
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        timeout: float = 8.0,
+        runner: Runner | None = None,
+        clock: Clock = _now,
+        entry_limit: int = 256,
+    ):
         self.path = Path(path)
         self.timeout = timeout
         self._runner = runner or self._run
+        self.observed_at = clock()
+        self.entry_limit = entry_limit
 
     def _run(self, command: Sequence[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -169,9 +188,12 @@ class JjAdapter:
                 (),
                 HistoryBoundary(HistoryBoundaryState.UNKNOWN),
                 {"identity": _outcome(CollectionState.ERROR, root_error)},
+                self.observed_at,
             )
         root = Path(root_output.strip())
+        working_copy, working_copy_outcome, path_outcome = self._working_copy()
         workspaces, workspace_outcome = self._workspaces()
+        workspaces = self._attach_working_copy(workspaces, working_copy)
         bookmarks, bookmark_outcome = self._bookmarks()
         visible, visible_outcome = self._visible_heads()
         history, history_outcome = self._history()
@@ -190,8 +212,151 @@ class JjAdapter:
                 "bookmarks": bookmark_outcome,
                 "visible_heads": visible_outcome,
                 "history": history_outcome,
+                "working_copy": working_copy_outcome,
+                "path_evidence": path_outcome,
             },
+            self.observed_at,
         )
+
+    def _read_current(
+        self, *, ignore_working_copy: bool
+    ) -> tuple[dict | None, CollectionError | None]:
+        template = (
+            'commit_id ++ "\\x00" ++ change_id ++ "\\x00" ++ '
+            'parents.map(|p| p.commit_id()).join(" ") ++ "\\x00" ++ '
+            'empty ++ "\\x00" ++ conflict ++ "\\x00" ++ '
+            'description.first_line() ++ "\\n"'
+        )
+        command = ["log", "-r", "@", "--no-graph"]
+        if ignore_working_copy:
+            command.append("--ignore-working-copy")
+        command.extend(("-T", template))
+        stage = "jj.working_copy_fallback" if ignore_working_copy else "jj.working_copy_refresh"
+        output, error = self._call(tuple(command), stage)
+        if error:
+            return None, error
+        try:
+            return parse_jj_current(output), None
+        except ValueError as exc:
+            return None, _error("parse_error", stage, str(exc))
+
+    def _working_copy(self) -> tuple[dict, CollectionOutcome, CollectionOutcome]:
+        current, refresh_error = self._read_current(ignore_working_copy=False)
+        refresh = {
+            "state": "performed",
+            "attempted_at": self.observed_at,
+            "errors": [],
+        }
+        freshness = "current"
+        errors = []
+        if refresh_error:
+            refresh = {
+                "state": "failed",
+                "attempted_at": self.observed_at,
+                "errors": [refresh_error.to_dict()],
+            }
+            freshness = "recorded_maybe_stale"
+            errors.append(refresh_error)
+            current, fallback_error = self._read_current(ignore_working_copy=True)
+            if fallback_error:
+                errors.append(fallback_error)
+                outcome = _outcome(CollectionState.ERROR, *errors)
+                value = self._unreadable_working_copy(outcome, refresh)
+                return value, outcome, _outcome(CollectionState.NOT_REQUESTED)
+
+        assert current is not None
+        output, path_error = self._call(
+            ("diff", "-r", "@", "--summary", "--ignore-working-copy"),
+            "jj.path_evidence",
+        )
+        entries = ()
+        truncated = False
+        if path_error:
+            path_outcome = _outcome(CollectionState.ERROR, path_error)
+        else:
+            try:
+                parsed = parse_jj_summary(output, limit=self.entry_limit)
+                entries = parsed.entries
+                truncated = parsed.truncated
+                path_outcome = _outcome(CollectionState.COMPLETE)
+            except ValueError as exc:
+                path_outcome = _outcome(
+                    CollectionState.PARTIAL,
+                    _error("parse_error", "jj.path_evidence", str(exc)),
+                )
+        working_copy_outcome = _outcome(CollectionState.COMPLETE)
+        state = "conflicted" if current["conflicted"] else "clean" if current["empty"] else "dirty"
+        outcome_value = working_copy_outcome.to_dict()
+        outcome_value["attempted_at"] = self.observed_at
+        entries_value = path_outcome.to_dict()
+        entries_value["attempted_at"] = self.observed_at
+        value = {
+            **current,
+            "state": state,
+            "recorded_state": state,
+            "outcome": outcome_value,
+            "refresh": refresh,
+            "freshness": freshness,
+            "entries_outcome": entries_value,
+            "entries_limit": self.entry_limit,
+            "entries_truncated": truncated,
+            "entries": list(entries),
+        }
+        return value, working_copy_outcome, path_outcome
+
+    def _unreadable_working_copy(self, outcome: CollectionOutcome, refresh: dict) -> dict:
+        outcome_value = outcome.to_dict()
+        outcome_value["attempted_at"] = self.observed_at
+        return {
+            "state": "unreadable",
+            "recorded_state": "unreadable",
+            "current": None,
+            "parents": [],
+            "empty": None,
+            "conflicted": None,
+            "description": None,
+            "outcome": outcome_value,
+            "refresh": refresh,
+            "freshness": "unknown",
+            "entries_outcome": {"state": "not_requested", "errors": []},
+            "entries_limit": self.entry_limit,
+            "entries_truncated": False,
+            "entries": [],
+        }
+
+    def _attach_working_copy(
+        self, workspaces: tuple[dict, ...], working_copy: dict
+    ) -> tuple[dict, ...]:
+        attached = []
+        for workspace in workspaces:
+            item = dict(workspace)
+            if Path(item.get("path", "")).resolve() == self.path.resolve():
+                item["working_copy"] = working_copy
+                item["current"] = working_copy.get("current")
+                item["parents"] = working_copy.get("parents", [])
+            else:
+                previous = item.get("working_copy", {})
+                item["working_copy"] = {
+                    "state": previous.get("state", "unknown"),
+                    "recorded_state": previous.get("state", "unknown"),
+                    "outcome": {
+                        "state": "partial",
+                        "attempted_at": self.observed_at,
+                        "errors": [],
+                    },
+                    "refresh": {
+                        "state": "skipped",
+                        "attempted_at": self.observed_at,
+                        "errors": [],
+                    },
+                    "freshness": "recorded_maybe_stale",
+                    "entries_outcome": {"state": "not_requested", "errors": []},
+                    "entries_limit": self.entry_limit,
+                    "entries_truncated": False,
+                    "entries": [],
+                }
+            attached.append(item)
+        return tuple(attached)
 
     def _store_hint(self) -> str | None:
         pointer = self.path / ".jj" / "repo"
@@ -285,9 +450,12 @@ class JjAdapter:
 
     def _history(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (
-            "commit_id++\\x00++change_id++\\x00++parents.map(|p| p.commit_id()).join(' ')++"
-            "\\x00++author.name()++\\x00++author.email()++\\x00++author.timestamp()++"
-            "\\x00++committer.name()++\\x00++committer.email()++\\x00++description.first_line()++\\n"
+            'commit_id ++ "\\x00" ++ change_id ++ "\\x00" ++ '
+            'parents.map(|p| p.commit_id()).join(" ") ++ "\\x00" ++ '
+            'author.name() ++ "\\x00" ++ author.email() ++ "\\x00" ++ '
+            'author.timestamp() ++ "\\x00" ++ committer.name() ++ "\\x00" ++ '
+            'committer.email() ++ "\\x00" ++ committer.timestamp() ++ "\\x00" ++ '
+            'description.first_line() ++ "\\n"'
         )
         output, error = self._call(
             ("log", "-r", "all()", "--no-graph", "--ignore-working-copy", "-T", template),

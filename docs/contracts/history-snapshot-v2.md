@@ -99,8 +99,8 @@ timestamp; `performed` and `skipped` forbid errors. `not_applicable` forbids an
 attempt and errors. `failed` requires a retained error. A performed refresh
 requires `current` freshness. Failed and skipped refreshes permit only
 `recorded_maybe_stale` or `unknown`. A not-applicable refresh permits `current`
-or `not_applicable`, allowing Git status to describe current files without
-pretending a jj-style refresh occurred.
+`unknown`, or `not_applicable`, allowing Git status to describe current files
+or a failed status attempt without pretending a jj-style refresh occurred.
 
 Freshness is `current`, `recorded_maybe_stale`, `unknown`, or
 `not_applicable`. It describes the relationship between recorded state and the
@@ -122,3 +122,39 @@ actually retained. V2 uses `component` precision for `attempted_at`.
 
 Never-observed facts are not written with a fabricated timestamp. Their
 logical origin is negative infinity when a consumer evaluates elapsed clocks.
+
+## Native working-copy commands
+
+The implemented Git observation uses:
+
+```text
+git --no-optional-locks status --porcelain=v2 --branch -z --untracked-files=all
+```
+
+This reads HEAD, index, worktree, unborn state, conflicts, and bounded path
+evidence while suppressing optional index-refresh locks. It does not fetch,
+reset, checkout, commit, or move refs.
+
+The primary requested jj workspace is first read with an ordinary `jj log -r
+@ --no-graph -T ...` command. That normal native path may snapshot filesystem
+changes into `@`. If it fails, collection repeats the same query with
+`--ignore-working-copy`; a successful fallback retains the recorded commit,
+change, parents, empty/conflict flags, and description with
+`recorded_maybe_stale` freshness. The refresh and fallback failures have
+distinct stages.
+
+Path evidence is then read from recorded `@` with:
+
+```text
+jj diff -r @ --summary --ignore-working-copy
+```
+
+Other enumerated jj workspaces are not refreshed through the requested
+workspace's filesystem location. Their refresh state is `skipped` and their
+freshness is `recorded_maybe_stale`. History, bookmarks, visible heads, and
+workspace enumeration continue to use `--ignore-working-copy` after the
+primary refresh attempt.
+
+These templates and fallback behaviors are exercised against jj 0.42.0. The
+history template quotes NUL separators and includes both author and committer
+timestamps, matching the ten-field retained history record.

@@ -3,7 +3,7 @@ FKA:
 AKA: jj refresh fallback; current workspace evidence
 Legacy index:
 
-keywords: tooling, active, adapters, jj, git, working-copy, completeness
+keywords: tooling, closed, adapters, jj, git, working-copy, completeness
 
 Parent: `260803-define-backlog-review-pressure`
 Depends on: `260803-version-mechanical-evidence-schema`
@@ -88,11 +88,39 @@ review semantics, the baseline script, or live resource files.
   an edited file into `@` and emitting its path evidence.
 - `scripts/check` passes with 100% statement and branch coverage.
 - Closure records supported jj version behavior and exact native commands.
+- Production snapshots now emit schema v2. Required native components and
+  per-workspace working-copy outcome, refresh, freshness, bounded entries, and
+  attempt times are populated without changing delta/pulse command surfaces.
+- Git uses `git --no-optional-locks status --porcelain=v2 --branch -z
+  --untracked-files=all`, retaining unborn, clean/dirty/conflicted/unreadable,
+  HEAD, and bounded path facts independently from topology.
+- The primary jj read uses ordinary `jj log -r @ --no-graph -T ...`; failure
+  retries with `--ignore-working-copy`. Path evidence uses `jj diff -r @
+  --summary --ignore-working-copy`. Refresh and fallback errors retain distinct
+  stages.
+- A controlled jj 0.42.0 repository test wrote `draft.txt`, observed the normal
+  native snapshot into `@`, reported `performed/current`, retained the changed
+  path, and completed native history collection.
+- Linked jj workspaces report `skipped/recorded_maybe_stale`; refresh/fallback
+  double failure retains both errors; Git status failure remains distinct from
+  unborn and clean.
+- Corrected the jj history template to quote NUL separators and include the
+  committer timestamp. A real nested colocated Git+jj workflow now reports jj
+  history complete rather than relying on aggregate Git success.
+- `scripts/check` passed: Ruff format/lint, 288 tests, 100% statement and branch
+  coverage, source distribution, and wheel build.
 
 ## Next Actions
 
-- Claim after `260803-version-mechanical-evidence-schema` closes.
+- `260803-evaluate-mechanical-predicates` remains blocked only by temporal
+  indexing; `260803-index-temporal-fact-intervals` is the next ready task.
 
 ## Decisions
 
 - Owner: Codex `/root`; claimed 2026-08-04 after the schema dependency closed.
+- Observer provenance is excluded from the legacy comparison presentation so
+  a new attempt timestamp alone cannot become `working_copy_changed`; full v2
+  manifests retain it.
+- Normal jj snapshotting is the only intentional repository-side observation
+  effect. All later jj topology/history/path reads use recorded state and no
+  command fetches, commits, rebases, abandons, repairs, or moves names.

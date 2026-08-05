@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Snapshot-v2 schema complete; working-copy collection active; temporal indexing ready; cutover pending
+> **Status:** Snapshot-v2 working-copy collection complete; temporal indexing ready; cutover pending
 > **Last Sync:** 2026-08-04
 
 ## 0. Manual Triage
@@ -38,14 +38,13 @@
 - Temporal evidence is component- and fact-specific: attempts and completeness
   belong to semantic collection components, while atomic facts retain
   confirmation intervals and explicit tombstones.
-- The planning parent and snapshot-v2 schema are closed. Working-copy
-  collection is claimed; temporal indexing remains independently ready,
-  followed by predicates, CLI, and black-box workflow validation.
+- The planning parent, snapshot-v2 schema, and current working-copy collection
+  are closed. Temporal indexing is ready, followed by predicates, CLI, and
+  black-box workflow validation.
 
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260803-collect-current-working-copy-evidence` — Make Git and jj working-copy observations current, symmetric where their native models permit it, and explicit about refresh, fallback, paths, conflicts, and component completeness...
 - `260803-evaluate-mechanical-predicates` — Implement the versioned, deterministic predicate document and evaluation service that intelligent consumers use to translate review intent into factual repository queries.
 - `260803-expose-mechanical-query-cli` — Add the public history query command and deterministic summary, audit, and JSON surfaces without adding semantic review ranking or host scheduling.
 - `260803-index-temporal-fact-intervals` — Build a deterministic, rebuildable temporal projection of retained v1/v2 observations so mechanical consumers can query confirmations, invalidations, reappearances, and elapsed obs...
@@ -66,6 +65,12 @@
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
+
+- `260803-collect-current-working-copy-evidence` — switched production to
+  snapshot v2, added non-locking Git status and jj refresh/fallback/path
+  evidence, kept linked-workspace freshness explicit, corrected the real jj
+  history template, and passed a jj 0.42 controlled trial plus 288 tests at
+  100% statement and branch coverage.
 
 - `260803-version-mechanical-evidence-schema` — added explicit snapshot-v2
   validation, conservative v1/v2 normalization, native component boundaries,

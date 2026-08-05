@@ -55,7 +55,10 @@ def test_successful_collection_normalizes_refs_history_and_workspaces(tmp_path):
         [
             completed(str(tmp_path)),
             completed("worktree " + str(tmp_path) + "\nHEAD ABC\nbranch refs/heads/main\n\n"),
-            completed(" M file\n"),
+            completed(
+                "# branch.oid ABC\x00# branch.head main\x00"
+                "1 .M N... 100644 100644 100644 abc abc file\x00"
+            ),
             completed("refs/heads/main\x00ABC\x00commit\x00\nrefs/tags/v1\x00TAG\x00tag\x00ABC\n"),
             completed(
                 "ABC\x00P\x00Alice\x00a@example\x002026-01-01T00:00:00Z\x00Bob\x00b@example\x002026-01-02T00:00:00Z\x00summary\n"
@@ -136,7 +139,7 @@ def test_worktree_status_error_and_unknown_history_paths(tmp_path):
     workspaces, outcome = GitAdapter(
         tmp_path, runner=lambda _command: next(responses)
     )._workspaces()
-    assert workspaces[0]["working_copy"]["state"] == "unknown"
+    assert workspaces[0]["working_copy"]["state"] == "unreadable"
     assert outcome.state is CollectionState.COMPLETE
 
     adapter = GitAdapter(tmp_path, runner=lambda _command: completed("", "bad", 1))
@@ -175,12 +178,13 @@ def test_default_runner_and_additional_error_branches(monkeypatch, tmp_path):
     responses = iter([completed(""), completed("", "bad", 1)])
     no_status = GitAdapter(tmp_path, runner=lambda _command: next(responses))
     workspaces, outcome = no_status._workspaces()
-    assert workspaces == () and outcome.state is CollectionState.PARTIAL
+    assert workspaces[0]["working_copy"]["state"] == "unreadable"
+    assert outcome.state is CollectionState.COMPLETE
 
     responses = iter(
         [
             completed("worktree /other\nHEAD ABC\n\nworktree " + str(tmp_path) + "\nHEAD DEF\n\n"),
-            completed(""),
+            completed("# branch.oid DEF\x00# branch.head main\x00"),
         ]
     )
     workspaces, outcome = GitAdapter(
@@ -219,3 +223,72 @@ def test_shallow_file_without_entries_keeps_complete_boundary(tmp_path):
     )
     assert outcome.state is CollectionState.COMPLETE
     assert boundary.state is HistoryBoundaryState.COMPLETE
+
+
+def test_git_working_copy_distinguishes_unborn_changed_and_status_errors(tmp_path):
+    unborn = GitAdapter(
+        tmp_path,
+        runner=lambda _command: completed("# branch.oid (initial)\x00? draft.txt\x00"),
+        clock=lambda: "2026-08-04T12:00:00Z",
+    )._working_copy()
+    assert unborn["unborn"] is True
+    assert unborn["current"] is None
+    assert unborn["recorded_state"] == "dirty"
+    assert unborn["entries"][0] == {"status": "added", "path": "draft.txt"}
+    assert unborn["refresh"]["state"] == "not_applicable"
+    assert unborn["freshness"] == "current"
+
+    error = GitAdapter(
+        tmp_path, runner=lambda _command: completed("", "status denied", 1)
+    )._working_copy()
+    assert error["recorded_state"] == "unreadable"
+    assert error["outcome"]["state"] == "error"
+    assert error["entries_outcome"]["errors"][0]["stage"] == "git.working_copy"
+    assert error["freshness"] == "unknown"
+
+
+def test_git_working_copy_parse_failure_and_entry_bound(tmp_path):
+    malformed = GitAdapter(tmp_path, runner=lambda _command: completed("bad\x00"))._working_copy()
+    assert malformed["recorded_state"] == "unknown"
+    assert malformed["outcome"]["state"] == "partial"
+
+    changed = GitAdapter(
+        tmp_path,
+        runner=lambda _command: completed("# branch.oid ABC\x00? first\x00? second\x00"),
+        entry_limit=1,
+    )._working_copy()
+    assert changed["current"]["object_id"]["value"] == "abc"
+    assert changed["entries"] == [{"status": "added", "path": "first"}]
+    assert changed["entries_truncated"] is True
+
+
+def test_git_status_suppresses_optional_lock_refresh(tmp_path):
+    calls = []
+
+    def runner(command):
+        calls.append(command)
+        return completed("# branch.oid ABC\x00")
+
+    GitAdapter(tmp_path, runner=runner)._working_copy()
+    assert calls == [
+        (
+            "--no-optional-locks",
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "-z",
+            "--untracked-files=all",
+        )
+    ]
+
+
+def test_linked_git_worktree_is_explicitly_not_observed(tmp_path):
+    adapter = GitAdapter(tmp_path, entry_limit=7)
+    value = adapter._unobserved_working_copy()
+    assert value["outcome"]["state"] == "not_requested"
+    assert value["freshness"] == "not_applicable"
+    assert value["entries_limit"] == 7
+    assert adapter._working_copy_outcomes(({"working_copy": value},))[0].state is (
+        CollectionState.NOT_REQUESTED
+    )
+    assert adapter._working_copy_outcomes(())[0].state is CollectionState.NOT_REQUESTED

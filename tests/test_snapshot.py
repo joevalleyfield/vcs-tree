@@ -8,7 +8,13 @@ from vcs_tree.models import (
     HistoryBoundary,
     HistoryBoundaryState,
 )
-from vcs_tree.snapshot import SnapshotCollector, _change_graph, _dedupe_dicts
+from vcs_tree.snapshot import (
+    SnapshotCollector,
+    _change_graph,
+    _combine_outcomes,
+    _dedupe_dicts,
+    _merge_workspaces,
+)
 
 
 def git_observation(root, *, state=CollectionState.COMPLETE, boundary=None):
@@ -92,6 +98,58 @@ def test_dedupe_dicts_is_deterministic():
     assert records == ({"id": "a"}, {"id": "b"})
 
 
+def test_legacy_workspace_presentation_and_outcome_combinations(tmp_path):
+    git = git_observation(tmp_path)
+    git = GitObservation(
+        git.root,
+        git.identity,
+        ({**git.workspaces[0], "working_copy": {"state": "dirty"}},),
+        git.refs,
+        git.history,
+        git.history_boundary,
+        git.collection,
+    )
+    workspace = _merge_workspaces(git, None, "2026-08-04T12:00:00Z")[0]
+    assert workspace["working_copy"]["recorded_state"] == "dirty"
+    assert workspace["working_copy"]["outcome"]["state"] == "complete"
+    native = GitObservation(
+        git.root,
+        git.identity,
+        (
+            {
+                **git.workspaces[0],
+                "working_copy": {"outcome": {"state": "not_requested", "errors": []}},
+            },
+        ),
+        git.refs,
+        git.history,
+        git.history_boundary,
+        git.collection,
+    )
+    assert _merge_workspaces(native, None, "2026-08-04T12:00:00Z")[0]["working_copy"] == {
+        "outcome": {"state": "not_requested", "errors": []}
+    }
+
+    error = CollectionError("command", "jj.history", "failed")
+    assert (
+        _combine_outcomes([CollectionOutcome(CollectionState.ERROR, (error,))]).state
+        is CollectionState.ERROR
+    )
+    assert (
+        _combine_outcomes([CollectionOutcome(CollectionState.PARTIAL, (error,))]).state
+        is CollectionState.PARTIAL
+    )
+    assert (
+        _combine_outcomes(
+            [
+                CollectionOutcome(CollectionState.NOT_REQUESTED),
+                CollectionOutcome(CollectionState.NOT_REQUESTED),
+            ]
+        ).state
+        is CollectionState.NOT_REQUESTED
+    )
+
+
 def test_git_snapshot_publishes_after_generation(tmp_path):
     (tmp_path / ".git").mkdir()
     ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
@@ -105,6 +163,7 @@ def test_git_snapshot_publishes_after_generation(tmp_path):
     )
     result = collector.collect(tmp_path)
     assert result.generation == 1
+    assert result.envelope.schema_version == 2
     assert result.envelope.repositories[0]["mode"] == "git"
     assert result.envelope.history_store.generation == 1
     assert ledger.read_objects()
@@ -277,6 +336,35 @@ def test_partial_native_outcome_is_preserved(tmp_path):
     )
     result = collector.collect(tmp_path)
     assert result.envelope.repositories[0]["collection"]["history"]["state"] == "partial"
+
+
+def test_colocated_git_success_does_not_mask_jj_history_error(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".jj").mkdir()
+    ledger = HistoryLedger.create(tmp_path / "state", writer_id="writer-a")
+    git = git_observation(tmp_path)
+    jj = jj_observation(tmp_path)
+    error = CollectionError("command_error", "jj.history", "failed", 1)
+    jj = JjObservation(
+        jj.root,
+        jj.store_hint,
+        jj.workspaces,
+        jj.bookmarks,
+        jj.visible_heads,
+        (),
+        HistoryBoundary(HistoryBoundaryState.UNKNOWN),
+        {**jj.collection, "history": CollectionOutcome(CollectionState.ERROR, (error,))},
+    )
+    collector = SnapshotCollector(
+        ledger,
+        git_factory=lambda _path: type("Git", (), {"collect": lambda self: git})(),
+        jj_factory=lambda _path: type("Jj", (), {"collect": lambda self: jj})(),
+        clock=lambda: "2026-08-04T12:00:00Z",
+    )
+    collection = collector.collect(tmp_path).envelope.repositories[0]["collection"]
+    assert collection["git_history"]["state"] == "complete"
+    assert collection["jj_history"]["state"] == "error"
+    assert collection["history"]["state"] == "error"
 
 
 def test_boundary_precedence_and_empty_observations(tmp_path):
