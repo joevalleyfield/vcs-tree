@@ -3,12 +3,12 @@ FKA:
 AKA: factual query engine; three-valued evidence predicates
 Legacy index:
 
-keywords: tooling, blocked, predicates, query, evidence, clocks, completeness
+keywords: tooling, closed, predicates, query, evidence, clocks, completeness
 
 Parent: `260803-define-backlog-review-pressure`
 Depends on: `260803-collect-current-working-copy-evidence`; `260803-index-temporal-fact-intervals`
 Blocks: `260803-expose-mechanical-query-cli`
-Blocked by: `260803-collect-current-working-copy-evidence`; `260803-index-temporal-fact-intervals`
+Blocked by:
 Related: `260801-calculate-history-deltas`; `260802-implement-pulse-orchestration`
 
 # Evaluate Mechanical Evidence Predicates
@@ -81,7 +81,40 @@ live resource files.
   reason codes.
 - `scripts/check` passes with 100% statement and branch coverage.
 
+## Decisions
+
+- The version 1 scope is either all represented repository keys or a canonical
+  non-empty explicit key set. Explicit unrepresented keys remain queryable and
+  normally evaluate indeterminate.
+- Attribute selectors use recursive subset matching. A query may constrain a
+  stable identity without copying unrelated presentation attributes.
+- Positive observations and tombstones answer directly. Absence requires a
+  complete applicable component, current/not-applicable freshness where a
+  freshness boundary exists, no relevant identity-continuity break, and a
+  fact type whose collection authorizes absence.
+- The caller supplies `evaluated_at`. Never-observed clocks serialize
+  `negative_infinity` origins and `positive_infinity` elapsed state rather than
+  non-portable numeric infinities.
+- Component outcome/freshness comparisons are string equality/inequality;
+  `complete_as_of` comparisons are chronological RFC 3339 comparisons.
+
+## Implemented Evidence
+
+- Added typed `HistoryQuery`, `PredicateNode`, and `FactSelector` models with
+  strict versioned validation and canonical serialization.
+- Added `PredicateEvaluator` with per-repository three-valued trees, stable
+  fact/component ordering, completeness and freshness boundaries, interval
+  provenance, clock origins, source snapshots, and continuity evidence.
+- Added the normative `docs/contracts/history-query-v1.md` contract and a
+  checked golden result document.
+- Covered malformed inputs, every leaf and numeric relation, nested truth
+  tables, never-observed/active/tombstoned/reappeared/partial/stale/identity
+  cases, multi-repository input ordering, Git unborn state, and jj root-parent
+  `00000000` evidence.
+- `scripts/check` passes: Ruff format/lint, 374 tests at 100% statement and
+  branch coverage, source distribution, and wheel build.
+
 ## Next Actions
 
-- Claim after both factual prerequisite tasks close.
-
+- Claim `260803-expose-mechanical-query-cli`; its predicate service dependency
+  is now closed.

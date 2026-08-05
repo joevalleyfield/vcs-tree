@@ -1,6 +1,6 @@
 # vcs-tree Workboard
 
-> **Status:** Temporal indexing complete; mechanical predicates ready; cutover pending
+> **Status:** Mechanical predicates complete; query CLI ready; cutover pending
 > **Last Sync:** 2026-08-04
 
 ## 0. Manual Triage
@@ -38,14 +38,13 @@
 - Temporal evidence is component- and fact-specific: attempts and completeness
   belong to semantic collection components, while atomic facts retain
   confirmation intervals and explicit tombstones.
-- The planning parent, snapshot-v2 schema, current working-copy collection, and
-  temporal indexing are closed. Mechanical predicate evaluation is ready,
-  followed by CLI and black-box workflow validation.
+- The planning parent, snapshot-v2 schema, current working-copy collection,
+  temporal indexing, and mechanical predicate evaluation are closed. Query CLI
+  integration is ready, followed by black-box workflow validation.
 
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260803-evaluate-mechanical-predicates` — Implement the versioned, deterministic predicate document and evaluation service that intelligent consumers use to translate review intent into factual repository queries.
 - `260803-expose-mechanical-query-cli` — Add the public history query command and deterministic summary, audit, and JSON surfaces without adding semantic review ranking or host scheduling.
 - `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
 <!-- WORKBOARD:OPEN:END -->
@@ -64,6 +63,11 @@
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
+
+- `260803-evaluate-mechanical-predicates` — added the typed history-query v1
+  model and an evidence-preserving evaluator for fact state, elapsed clocks,
+  component boundaries, and three-valued boolean composition; a golden result
+  plus Git-unborn/jj-root fixtures pass with 374 tests at 100% coverage.
 
 - `260803-index-temporal-fact-intervals` — added a rebuildable canonical index
   with component clocks, stable atomic fact keys, confirmation/tombstone/

@@ -1,0 +1,89 @@
+{
+  "evaluated_at": "2026-08-04T14:00:00Z",
+  "query": {
+    "schema": "vcs-tree.history-query",
+    "schema_version": 1,
+    "scope": {"repository_keys": ["repo-b"]},
+    "where": {
+      "elapsed": {
+        "clock": "last_transition",
+        "fact": {"attributes": {"name": "missing"}, "type": "git-ref-exists"},
+        "relation": "gte",
+        "seconds": 60
+      }
+    }
+  },
+  "results": [
+    {
+      "evidence": {
+        "clock": {
+          "evaluated_at": "2026-08-04T14:00:00+00:00",
+          "name": "last_transition",
+          "observations": [
+            {
+              "elapsed": {"state": "positive_infinity"},
+              "origin": {"state": "never_observed", "value": "negative_infinity"}
+            }
+          ]
+        },
+        "completeness": [
+          {
+            "complete_as_of": {
+              "at": "2026-08-04T13:00:00Z",
+              "snapshot_id": "s4",
+              "state": "observed",
+              "time_precision": "component"
+            },
+            "component_key": "repo-b:git_refs",
+            "freshness": null,
+            "last_outcome": "complete"
+          }
+        ],
+        "components": [
+          {
+            "complete_as_of": {
+              "at": "2026-08-04T13:00:00Z",
+              "snapshot_id": "s4",
+              "state": "observed",
+              "time_precision": "component"
+            },
+            "component": "git_refs",
+            "component_key": "repo-b:git_refs",
+            "errors": [],
+            "last_attempted_at": {
+              "at": "2026-08-04T13:00:00Z",
+              "snapshot_id": "s4",
+              "state": "observed",
+              "time_precision": "component"
+            },
+            "last_outcome": "complete",
+            "repository_key": "repo-b"
+          }
+        ],
+        "continuity_boundaries": [],
+        "facts": [],
+        "source_snapshots": []
+      },
+      "outcome": "true",
+      "predicate": {
+        "elapsed": {
+          "clock": "last_transition",
+          "fact": {"attributes": {"name": "missing"}, "type": "git-ref-exists"},
+          "relation": "gte",
+          "seconds": 60
+        }
+      },
+      "repository_key": "repo-b"
+    }
+  ],
+  "schema": "vcs-tree.history-query-result",
+  "schema_version": 1,
+  "temporal_index": {
+    "continuity_boundaries": [],
+    "schema": "vcs-tree.temporal-facts",
+    "schema_version": 1,
+    "source_generation": 4,
+    "source_snapshots": [{"generation": 4, "schema_version": 2, "snapshot_id": "s4"}],
+    "store_id": "store"
+  }
+}

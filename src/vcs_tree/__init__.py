@@ -46,6 +46,18 @@ from .models import (
     dumps,
     loads,
 )
+from .predicate_evaluator import (
+    RESULT_SCHEMA,
+    RESULT_SCHEMA_VERSION,
+    PredicateEvaluator,
+)
+from .predicate_models import (
+    QUERY_SCHEMA,
+    QUERY_SCHEMA_VERSION,
+    FactSelector,
+    HistoryQuery,
+    PredicateNode,
+)
 from .pulse import PulseOrchestrator, PulseSelectionError
 from .snapshot import SnapshotCollector, SnapshotResult, discover_repository_roots
 from .snapshot_schema import component_comparison, normalize_snapshot, parse_snapshot
@@ -115,6 +127,14 @@ __all__ = [
     "HistoryDeltaCalculator",
     "PulseOrchestrator",
     "PulseSelectionError",
+    "QUERY_SCHEMA",
+    "QUERY_SCHEMA_VERSION",
+    "RESULT_SCHEMA",
+    "RESULT_SCHEMA_VERSION",
+    "FactSelector",
+    "HistoryQuery",
+    "PredicateNode",
+    "PredicateEvaluator",
     "EnrichmentResult",
     "PulseEnricher",
 ]
