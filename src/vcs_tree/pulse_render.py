@@ -36,15 +36,41 @@ def render_summary(document: Mapping[str, Any]) -> str:
             if not events:
                 continue
             lines.append(f"{repository.get('path')} [{repository.get('mode') or 'unknown'}]")
-            for event in events:
-                details = event.get("details", {})
-                suffix = ""
-                if isinstance(details, Mapping) and details.get("state"):
-                    suffix = f" ({details['state']})"
-                lines.append(f"  {event.get('event')}{suffix}")
-            for task_event in repository.get("task_path_events", ()):
-                task_path = task_event.get("new_path") or task_event.get("old_path")
-                lines.append(f"  task path: {task_event.get('event')} {task_path}")
+            groups = repository.get("movement_groups", ())
+            if groups:
+                for group in groups:
+                    label = group.get("change_id") or group.get("group_key")
+                    descriptions = group.get("descriptions", ())
+                    summary = descriptions[0].get("summary") if descriptions else None
+                    suffix = f": {summary}" if summary else ""
+                    lines.append(f"  {label}{suffix}")
+                    event_labels = []
+                    for event in group.get("events", ()):
+                        details = event.get("details", {})
+                        state = details.get("state") if isinstance(details, Mapping) else None
+                        event_labels.append(
+                            f"{event.get('event')} ({state})" if state else str(event.get("event"))
+                        )
+                    if event_labels:
+                        lines.append(f"    events: {', '.join(event_labels)}")
+                    versions = group.get("new_versions", ())
+                    if versions:
+                        lines.append(f"    versions: {', '.join(versions)}")
+                    for task_event in group.get("task_path_events", ()):
+                        task_path = task_event.get("new_path") or task_event.get("old_path")
+                        lines.append(f"    task path: {task_event.get('event')} {task_path}")
+            else:
+                for event in events:
+                    details = event.get("details", {})
+                    suffix = (
+                        f" ({details['state']})"
+                        if isinstance(details, Mapping) and details.get("state")
+                        else ""
+                    )
+                    lines.append(f"  {event.get('event')}{suffix}")
+                for task_event in repository.get("task_path_events", ()):
+                    task_path = task_event.get("new_path") or task_event.get("old_path")
+                    lines.append(f"  task path: {task_event.get('event')} {task_path}")
         summary = document.get("summary", {})
         noops = summary.get("no_op_repositories", 0)
         if noops:

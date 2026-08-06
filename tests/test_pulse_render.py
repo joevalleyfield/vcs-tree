@@ -56,3 +56,25 @@ def test_renderers_cover_empty_detail_noop_and_warning_paths():
     value["warnings"] = []
     assert "opaque" in render_summary(value)
     assert "warnings:" in render_audit(value)
+
+
+def test_summary_renders_compact_movement_groups():
+    value = document()
+    value["repositories"][0]["movement_groups"] = [
+        {
+            "group_key": "change:C1",
+            "change_id": "C1",
+            "descriptions": [{"summary": "rewrite"}],
+            "events": [
+                {"event": "change_versions_changed", "details": {"state": "rewritten"}},
+                {"event": "visible_head_added", "details": {}},
+            ],
+            "new_versions": ["v2"],
+            "task_path_events": [{"event": "task_path_modified", "new_path": "tasks/open/x.md"}],
+        },
+        {"group_key": "event:opaque", "events": [], "new_versions": []},
+    ]
+    summary = render_summary(value)
+    assert "C1: rewrite" in summary
+    assert "versions: v2" in summary
+    assert "task path: task_path_modified tasks/open/x.md" in summary

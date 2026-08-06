@@ -185,6 +185,75 @@ def test_pulse_repository_location_fallbacks():
     )
 
 
+def test_pulse_repository_groups_change_events_with_native_evidence():
+    repository = {
+        "repository_key": "repo-1",
+        "path": ".",
+        "mode": "jj",
+        "descriptions": [
+            {"object_id": {"value": "v2"}, "change_id": "change-1", "summary": "rewrite"}
+        ],
+        "path_evidence": [
+            {
+                "object_id": {"value": "v2"},
+                "parent_id": "v1",
+                "paths": [{"status": "modified", "path": "tasks/open/item.md"}],
+            },
+            {
+                "object_id": {"value": "v2"},
+                "parent_id": "v1",
+                "paths": [{"status": "modified", "path": "tasks/open/item.md"}],
+            },
+        ],
+    }
+    result = _pulse_repository(
+        repository,
+        [
+            {
+                "event": "change_versions_changed",
+                "event_key": "change_versions_changed:change-1",
+                "details": {
+                    "change_id": "change-1",
+                    "old_visible_commits": ["v1"],
+                    "new_visible_commits": ["v2"],
+                    "state": "rewritten",
+                },
+            },
+            {"event": "comparison_incomplete", "details": {"component": "bookmarks"}},
+        ],
+    )
+    assert len(result["movement_groups"]) == 1
+    group = result["movement_groups"][0]
+    assert group["change_id"] == "change-1"
+    assert group["old_versions"] == ["v1"]
+    assert group["new_versions"] == ["v2"]
+    assert group["descriptions"][0]["summary"] == "rewrite"
+    assert group["task_path_events"][0]["event"] == "task_path_modified"
+    assert all(event["event"] != "comparison_incomplete" for event in group["events"])
+
+
+def test_pulse_repository_groups_uncertainty_publication_and_malformed_detail():
+    repository = {
+        "repository_key": "repo-1",
+        "descriptions": [{"object_id": "v1", "summary": ""}],
+        "path_evidence": [{}, {"object_id": "v1", "parent_id": None, "paths": []}],
+    }
+    result = _pulse_repository(
+        repository,
+        [
+            "ignored",
+            {"event": "ref_target_changed", "details": {"old": {}, "new": {}}},
+            {"event": "workspace_head_changed", "details": "opaque", "certainty": "indeterminate"},
+        ],
+    )
+    assert [item["event"] for item in result["movement_groups"][0]["events"]] == [
+        "ref_target_changed"
+    ]
+    uncertain = result["movement_groups"][1]
+    assert uncertain["completeness"] == "partial"
+    assert uncertain["uncertainty"] == ["workspace_head_changed"]
+
+
 def test_jj_graph_movement_enrichment_and_task_paths_survive_partial_publication():
     source = snapshot("source", 3)
     target = snapshot("target", 4)

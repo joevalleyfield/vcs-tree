@@ -270,16 +270,143 @@ def _pulse_repository(
         for item in warnings
         if item.get("repository_key") in {None, repository.get("repository_key")}
     ]
+    event_items = list(events)
     return {
         "repository_key": repository.get("repository_key"),
         "path": path,
         "mode": repository.get("mode"),
-        "events": list(events),
+        "events": event_items,
         "descriptions": list(repository.get("descriptions", ())),
         "path_evidence": path_evidence,
         "task_path_events": task_events,
         "warning_keys": sorted(item["warning_key"] for item in warning_items),
+        "movement_groups": _movement_groups(
+            repository, event_items, list(repository.get("descriptions", ())), path_evidence
+        ),
     }
+
+
+def _movement_groups(
+    repository: Mapping[str, Any],
+    events: list[Mapping[str, Any]],
+    descriptions: list[Mapping[str, Any]],
+    path_evidence: list[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build a compact, deterministic view without replacing native evidence."""
+
+    def value_id(value: Any) -> str:
+        return str(value.get("value", "")) if isinstance(value, Mapping) else str(value or "")
+
+    description_by_id = {
+        value_id(item.get("object_id")): item
+        for item in descriptions
+        if isinstance(item, Mapping) and value_id(item.get("object_id"))
+    }
+    paths_by_id: dict[str, list[Mapping[str, Any]]] = {}
+    for group in path_evidence:
+        object_id = group.get("object_id") if isinstance(group, Mapping) else None
+        object_id = object_id.get("value", "") if isinstance(object_id, Mapping) else object_id
+        if object_id:
+            paths_by_id.setdefault(str(object_id), []).append(group)
+
+    groups: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if not isinstance(event, Mapping) or event.get("event") == "comparison_incomplete":
+            continue
+        details = event.get("details", {})
+        if not isinstance(details, Mapping):
+            details = {}
+        change_id = details.get("change_id")
+        object_ids = list(details.get("new_visible_commits", ())) + list(
+            details.get("old_visible_commits", ())
+        )
+        object_ids.extend(
+            value
+            for value in (
+                details.get("object_id"),
+                details.get("old_object_id"),
+                details.get("new_object_id"),
+            )
+            if value
+        )
+        object_ids = sorted(
+            {
+                str(value.get("value", "")) if isinstance(value, Mapping) else str(value)
+                for value in object_ids
+                if value
+            }
+        )
+        key = (
+            f"change:{change_id}"
+            if change_id
+            else f"event:{event.get('event_key', event.get('event', 'unknown'))}"
+        )
+        group = groups.setdefault(
+            key,
+            {
+                "group_key": key,
+                "change_id": change_id,
+                "events": [],
+                "event_keys": [],
+                "old_versions": [],
+                "new_versions": [],
+                "descriptions": [],
+                "path_evidence": [],
+                "task_path_events": [],
+                "publication_hints": [],
+                "uncertainty": [],
+                "completeness": "complete",
+            },
+        )
+        group["events"].append(dict(event))
+        group["event_keys"].append(event.get("event_key", event.get("event")))
+        for field, target in (
+            ("old_visible_commits", "old_versions"),
+            ("new_visible_commits", "new_versions"),
+        ):
+            group[target].extend(
+                str(value.get("value", "")) if isinstance(value, Mapping) else str(value)
+                for value in details.get(field, ())
+                if value
+            )
+        for object_id in object_ids:
+            if (
+                object_id in description_by_id
+                and description_by_id[object_id] not in group["descriptions"]
+            ):
+                group["descriptions"].append(description_by_id[object_id])
+            for evidence in paths_by_id.get(object_id, ()):
+                if evidence not in group["path_evidence"]:
+                    group["path_evidence"].append(evidence)
+        if event.get("certainty") == "indeterminate":
+            group["uncertainty"].append(event.get("event"))
+            group["completeness"] = "partial"
+        if event.get("event", "").startswith(("ref_", "bookmark_", "tag_")):
+            group["publication_hints"].append(dict(details))
+
+    for group in groups.values():
+        group["old_versions"] = sorted(set(group["old_versions"]))
+        group["new_versions"] = sorted(set(group["new_versions"]))
+        group["event_keys"] = sorted(set(group["event_keys"]))
+        group["uncertainty"] = sorted(set(group["uncertainty"]))
+        group["events"] = sorted(
+            group["events"], key=lambda item: str(item.get("event_key", item.get("event", "")))
+        )
+        group["descriptions"] = sorted(
+            group["descriptions"], key=lambda item: value_id(item.get("object_id"))
+        )
+        group["path_evidence"] = sorted(
+            group["path_evidence"],
+            key=lambda item: (str(item.get("object_id", "")), str(item.get("parent_id", ""))),
+        )
+        group["task_path_events"] = list(classify_task_paths(group["path_evidence"]))
+        if not group["descriptions"] or any(
+            not item.get("paths") for item in group["path_evidence"]
+        ):
+            # Missing enrichment is represented by the repository outcome/warnings;
+            # this marker only says what this group itself contains.
+            group["completeness"] = "partial" if group["uncertainty"] else "complete"
+    return sorted(groups.values(), key=lambda item: str(item["group_key"]))
 
 
 def _summary(

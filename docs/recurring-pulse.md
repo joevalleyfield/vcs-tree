@@ -73,6 +73,17 @@ error and has no pulse contract.
 Limits make a result partial when evidence is suppressed; they do not change
 the underlying snapshot or delete retained facts.
 
+### Movement groups
+
+Each JSON repository entry retains the complete native `events` array and also
+exposes deterministic `movement_groups`. A group is keyed by jj `change_id`
+when available, otherwise by the native event key. It carries old/new version
+IDs, descriptions, parent-relative path evidence, derived task-path events,
+publication-hint details, and uncertainty. Comparison-recovery and suppressed
+evidence remain in the repository events and warning lifecycle rather than
+being presented as movement. The summary renders these groups compactly; audit
+and JSON retain the contributing native events and no-op repositories.
+
 ## Thin scheduler examples
 
 These are host examples only. They add no scheduler dependency and do not
