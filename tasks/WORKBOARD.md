@@ -45,6 +45,8 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
+- `260806-expose-workspace-family-identity` — Let public consumers recognize several linked jj workspace paths as views of one operation/repository without collapsing their distinct local evidence.
+- `260806-extend-temporal-index` — Reuse a validated prior-generation temporal projection when evaluating the next retained generation instead of rebuilding every historical snapshot.
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
@@ -53,16 +55,11 @@
 - `260806-support-review-consumers` — Turn the 2026-08-06 playbook trial into factual, supported affordances that let an external reviewer spend attention on domain judgment rather than ledger mechanics.
 - `260806-project-review-candidate-evidence` — Expose a supported factual projection for current-workspace review questions without emitting review conclusions or requiring private-ledger joins.
 - `260806-operationalize-query-index` — Make several factual questions over one accepted observation observable, reusable, and safe for recurring playbook execution.
-- `260806-group-movement-evidence` — Present factual movement as compact repository/change groups with descriptions, paths, and completeness so consumers do not reconstruct meaning from repeated low-level labels.
-- `260806-correct-movement-evidence` — Suppressed false jj movement from equal version sets and incomplete-collection recovery while preserving explicit uncertainty.
 - `260806-history-completeness-and-bookmarks` — Make incomplete-history reports explainable and mode-aware so downstream dispatchers can distinguish tool gaps from repository movement.
+- `260806-group-movement-evidence` — Present factual movement as compact repository/change groups with descriptions, paths, and completeness so consumers do not reconstruct meaning from repeated low-level labels.
+- `260806-correct-movement-evidence` — Ensure pulse and delta report repository-state transitions rather than identical states or facts that merely became observable after incomplete collection.
 - `260805-delta-presentation-surfaces` — Separate operator-facing movement summaries from complete machine-readable delta documents while retaining an auditable way to inspect verified no-ops.
 - `260804-history-observability-and-index` — Make long-running history scans observable and expose a supported operator listing of retained snapshots.
-- `260803-version-mechanical-evidence-schema` — Implement the snapshot-v2 model and v1 compatibility boundary required by `planning/mechanical-review-dispatch.md` without changing native collection commands or adding predicate e...
-- `260803-test-nested-repository-features` — Add focused behavioral tests for nested repository discovery, ownership, deduplication, boundaries, and deterministic reporting.
-- `260803-test-nested-repository-e2e` — Exercise nested Git/jj discovery through the installed CLI and confirm the operator-visible output and persisted snapshots match the feature contract.
-- `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
-- `260803-sync-workboard` — Adapt the proven task-inventory synchronizer from `../toas` so this repository's Open Queue is generated from `tasks/open/`, while recent closures and the relationship view remain ...
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
