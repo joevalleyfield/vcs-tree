@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -28,7 +28,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def read_query(where: str | None, where_file: str | None) -> HistoryQuery:
+def _read_query_value(where: str | None, where_file: str | None) -> Any:
     if (where is None) == (where_file is None):
         raise ValueError("exactly one of --where or --where-file is required")
     text = (
@@ -37,13 +37,25 @@ def read_query(where: str | None, where_file: str | None) -> HistoryQuery:
         else (__import__("sys").stdin.read() if where_file == "-" else Path(where_file).read_text())
     )
     try:
-        value = json.loads(text)
+        return json.loads(text)
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         raise ValueError(f"invalid query JSON: {exc}") from exc
+
+
+def read_queries(where: str | None, where_file: str | None) -> tuple[HistoryQuery, ...]:
+    value = _read_query_value(where, where_file)
+    values = value if isinstance(value, list) else [value]
     try:
-        return HistoryQuery.from_dict(value)
+        return tuple(HistoryQuery.from_dict(item) for item in values)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"invalid query schema: {exc}") from exc
+
+
+def read_query(where: str | None, where_file: str | None) -> HistoryQuery:
+    queries = read_queries(where, where_file)
+    if len(queries) != 1:
+        raise ValueError("exactly one query is required")
+    return queries[0]
 
 
 def _cache_path(ledger: HistoryLedger, generation: int) -> Path | None:
@@ -185,16 +197,92 @@ def execute_query(
     return evaluated, target
 
 
+def execute_queries(
+    ledger: HistoryLedger,
+    queries: Sequence[HistoryQuery],
+    *,
+    path: str | Path = ".",
+    snapshot_id: str | None = None,
+    capture: bool = False,
+    evaluated_at: str | None = None,
+    collector: SnapshotCollector | None = None,
+    progress: Callable[[str], None] | None = None,
+) -> tuple[dict[str, Any], str | None]:
+    if not queries:
+        raise ValueError("at least one query is required")
+    if len(queries) == 1:
+        return execute_query(
+            ledger,
+            queries[0],
+            path=path,
+            snapshot_id=snapshot_id,
+            capture=capture,
+            evaluated_at=evaluated_at,
+            collector=collector,
+            progress=progress,
+        )
+    # Resolve the observation once by using the first query's single-query path;
+    # subsequent predicates reuse its exact index and evaluation instant.
+    first, target = execute_query(
+        ledger,
+        queries[0],
+        path=path,
+        snapshot_id=snapshot_id,
+        capture=capture,
+        evaluated_at=evaluated_at,
+        collector=collector,
+        progress=progress,
+    )
+    evaluated_at_value = first.get("evaluated_at", evaluated_at or _now())
+    index = (
+        ledger.read_temporal_index(progress=progress)
+        if snapshot_id is None and capture and progress
+        else ledger.read_temporal_index()
+        if snapshot_id is None and capture
+        else _index_for_snapshot(ledger, snapshot_id)[0]
+        if snapshot_id is not None
+        else ledger.read_temporal_index()
+    )
+    results = [{"query_index": 0, "results": first.get("results", [])}]
+    for position, query in enumerate(queries[1:], 1):
+        try:
+            evaluated = PredicateEvaluator().evaluate(query, index, evaluated_at=evaluated_at_value)
+        except Exception as exc:
+            raise QueryExecutionError(str(exc), snapshot_id=target) from exc
+        results.append({"query_index": position, "results": evaluated.get("results", [])})
+    return (
+        {
+            "schema": "vcs-tree.history-query-batch",
+            "schema_version": 1,
+            "evaluated_at": evaluated_at_value,
+            "capture": first["capture"],
+            "queries": results,
+        },
+        target,
+    )
+
+
 def render_query(document: dict[str, Any], mode: str) -> str:
     if mode == "json":
         return json.dumps(document, indent=2, sort_keys=True)
-    results = document.get("results", [])
+    batches = document.get("queries", ())
+    if batches:
+        results = [
+            {**result, "query_index": batch.get("query_index", position)}
+            for position, batch in enumerate(batches)
+            for result in batch.get("results", ())
+        ]
+    else:
+        results = document.get("results", [])
     counts = {
         state: sum(item.get("outcome") == state for item in results)
         for state in ("true", "false", "indeterminate")
     }
+    label = "history query batch" if batches else "history query"
+    if batches:
+        label += f" ({len(batches)} predicates)"
     lines = [
-        "history query ("
+        label + " ("
         f"{counts['true']} true, {counts['false']} false, "
         f"{counts['indeterminate']} indeterminate)",
         f"snapshot: {document.get('capture', {}).get('snapshot_id')}",
@@ -214,4 +302,11 @@ def render_query(document: dict[str, Any], mode: str) -> str:
     return "\n".join(lines)
 
 
-__all__ = ["QueryExecutionError", "execute_query", "read_query", "render_query"]
+__all__ = [
+    "QueryExecutionError",
+    "execute_queries",
+    "execute_query",
+    "read_queries",
+    "read_query",
+    "render_query",
+]

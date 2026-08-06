@@ -429,6 +429,9 @@ def test_query_input_inline_file_stdin_and_validation(tmp_path, monkeypatch):
         "sys.stdin", type("Input", (), {"read": lambda self: json.dumps(_query_document())})()
     )
     assert query_cli.read_query(None, "-").to_dict() == _query_document()
+    assert (
+        len(query_cli.read_queries(json.dumps([_query_document(), _query_document()]), None)) == 2
+    )
     for where, where_file, expected in (
         (None, None, "exactly one"),
         ("{}", str(query_file), "exactly one"),
@@ -437,6 +440,8 @@ def test_query_input_inline_file_stdin_and_validation(tmp_path, monkeypatch):
     ):
         with pytest.raises(ValueError, match=expected):
             query_cli.read_query(where, where_file)
+    with pytest.raises(ValueError, match="exactly one query"):
+        query_cli.read_query(json.dumps([_query_document(), _query_document()]), None)
 
 
 def test_query_render_modes_and_execution_errors(monkeypatch):
@@ -451,6 +456,11 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
     assert "omitted" in query_cli.render_query(document, "summary")
     assert '"repository_key": "b"' in query_cli.render_query(document, "audit")
     assert query_cli.render_query(document, "json").startswith("{")
+    batch_document = {
+        "queries": [{"query_index": 0, "results": document["results"]}],
+        "capture": {"snapshot_id": "s"},
+    }
+    assert "1 predicates" in query_cli.render_query(batch_document, "summary")
 
     class FakeCollector:
         def collect(self, path):
@@ -497,6 +507,18 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
         FakeLedger(), HistoryQuery.from_dict(_query_document()), snapshot_id="retained"
     )
     assert target == "retained" and not result["capture"]["performed"]
+    batch, target = query_cli.execute_queries(
+        FakeLedger(),
+        (HistoryQuery.from_dict(_query_document()), HistoryQuery.from_dict(_query_document())),
+        snapshot_id="retained",
+    )
+    assert target == "retained" and len(batch["queries"]) == 2
+    single, target = query_cli.execute_queries(
+        FakeLedger(), (HistoryQuery.from_dict(_query_document()),), snapshot_id="retained"
+    )
+    assert target == "retained" and "results" in single
+    with pytest.raises(ValueError, match="at least one"):
+        query_cli.execute_queries(FakeLedger(), ())
     result, target = query_cli.execute_query(
         FakeLedger(), HistoryQuery.from_dict(_query_document())
     )
@@ -512,6 +534,17 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
     def fail(*args, **kwargs):
         raise ValueError("bad evaluation")
 
+    monkeypatch.setattr(
+        query_cli.PredicateEvaluator,
+        "evaluate",
+        Mock(side_effect=[{"results": []}, ValueError("bad evaluation")]),
+    )
+    with pytest.raises(query_cli.QueryExecutionError, match="bad evaluation"):
+        query_cli.execute_queries(
+            FakeLedger(),
+            (HistoryQuery.from_dict(_query_document()), HistoryQuery.from_dict(_query_document())),
+            snapshot_id="retained",
+        )
     monkeypatch.setattr(query_cli.PredicateEvaluator, "evaluate", fail)
     with pytest.raises(query_cli.QueryExecutionError, match="bad evaluation") as error:
         query_cli.execute_query(
@@ -662,7 +695,7 @@ def test_query_cli_success_and_indeterminate_exit(tmp_path, monkeypatch, capsys)
     HistoryLedger.create(state, writer_id="writer")
     monkeypatch.setattr(
         cli,
-        "execute_query",
+        "execute_queries",
         lambda *args, **kwargs: (
             {"results": [{"outcome": "indeterminate"}], "capture": {"snapshot_id": "s"}},
             "s",
@@ -685,7 +718,32 @@ def test_query_cli_success_and_indeterminate_exit(tmp_path, monkeypatch, capsys)
     assert capsys.readouterr().out.strip() == "rendered"
     monkeypatch.setattr(
         cli,
-        "execute_query",
+        "execute_queries",
+        lambda *args, **kwargs: (
+            {
+                "queries": [{"results": [{"outcome": "indeterminate"}]}],
+                "capture": {"snapshot_id": "s"},
+            },
+            "s",
+        ),
+    )
+    assert (
+        cli.main(
+            [
+                "history",
+                "query",
+                "--state-root",
+                str(state),
+                "--where",
+                json.dumps([_query_document(), _query_document()]),
+            ]
+        )
+        == 3
+    )
+    capsys.readouterr()
+    monkeypatch.setattr(
+        cli,
+        "execute_queries",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             query_cli.QueryExecutionError("failed", snapshot_id="captured")
         ),

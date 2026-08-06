@@ -13,7 +13,12 @@ from vcs_tree.enrichment import PulseEnricher
 from vcs_tree.ledger import HistoryLedger, LedgerError, resolve_paths
 from vcs_tree.pulse import PulseOrchestrator, PulseSelectionError
 from vcs_tree.pulse_render import render
-from vcs_tree.query_cli import QueryExecutionError, execute_query, read_query, render_query
+from vcs_tree.query_cli import (
+    QueryExecutionError,
+    execute_queries,
+    read_queries,
+    render_query,
+)
 from vcs_tree.scanner import vcs_tree
 from vcs_tree.snapshot import SnapshotCollector
 
@@ -210,12 +215,12 @@ def _history_main(args: argparse.Namespace) -> int:
     try:
         ledger = HistoryLedger.open(state_root)
         if args.history_command == "query":
-            query = read_query(args.where, args.where_file)
+            queries = read_queries(args.where, args.where_file)
             target = args.snapshot
             try:
-                document, target = execute_query(
+                document, target = execute_queries(
                     ledger,
-                    query,
+                    queries,
                     path=args.path,
                     snapshot_id=args.snapshot,
                     capture=args.capture,
@@ -229,7 +234,10 @@ def _history_main(args: argparse.Namespace) -> int:
                 )
                 return 4
             print(render_query(document, args.format))
-            outcomes = [item.get("outcome") for item in document.get("results", [])]
+            result_items = list(document.get("results", ()))
+            for batch in document.get("queries", ()):
+                result_items.extend(batch.get("results", ()))
+            outcomes = [item.get("outcome") for item in result_items]
             return 3 if "indeterminate" in outcomes else 0
         if args.history_command == "pulse":
 

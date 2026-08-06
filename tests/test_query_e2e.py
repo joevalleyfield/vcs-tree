@@ -85,6 +85,20 @@ def test_git_unborn_query_outputs_factual_result_and_all_modes(tmp_path):
     )
     assert document["results"][0]["evidence"]
     snapshot_id = document["capture"]["snapshot_id"]
+    batch = run_cli(
+        "history",
+        "query",
+        "--state-root",
+        str(state),
+        "--where",
+        json.dumps([query(), query("git-ref-exists")]),
+        "--format",
+        "json",
+    )
+    assert batch.returncode == 0, batch.stderr
+    batch_document = json.loads(batch.stdout)
+    assert len(batch_document["queries"]) == 2
+    assert batch_document["capture"]["performed"] is False
     retained_input = json.dumps(query()).encode()
     # The installed command accepts stdin as the retained query representation.
     retained = subprocess.run(
