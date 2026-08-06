@@ -8,6 +8,7 @@ import pytest
 
 from vcs_tree import cli, query_cli
 from vcs_tree.ledger import HistoryLedger, LedgerError
+from vcs_tree.models import HistoryStore, SnapshotEnvelope
 from vcs_tree.predicate_models import HistoryQuery
 
 
@@ -145,6 +146,59 @@ def test_history_list_reports_empty_initialized_index(tmp_path, capsys):
     assert result["status"] == "ok"
     assert result["store_id"] == ledger.store_id
     assert result["snapshots"] == []
+
+
+def test_history_candidates_projects_latest_and_explicit_snapshot(tmp_path, capsys):
+    state = tmp_path / "state"
+    ledger = HistoryLedger.create(state, writer_id="writer")
+    ledger.commit_generation(writer_id="writer")
+    document = SnapshotEnvelope(
+        "snapshot-1",
+        "2026-08-06T12:00:00Z",
+        {"name": "vcs-tree"},
+        HistoryStore(ledger.store_id, 1, writer_id="writer"),
+        {"root": "/workspace", "outcome": {"state": "complete", "errors": []}},
+        (
+            {
+                "repository_key": "repo-1",
+                "mode": "jj",
+                "locations": [{"path": "/workspace/project"}],
+                "workspaces": [
+                    {
+                        "workspace_key": "default",
+                        "current": {"object_id": "head", "change_id": "change"},
+                        "parents": [{"object_id": "parent"}],
+                        "working_copy": {"state": "clean", "entries": []},
+                    }
+                ],
+            },
+        ),
+    )
+    ledger.record_snapshot("snapshot-1", 1, manifest=document.to_dict(), writer_id="writer")
+    assert (
+        cli.main(["history", "candidates", "--state-root", str(state), "--format", "summary"]) == 0
+    )
+    assert "project [jj]" in capsys.readouterr().out
+    assert (
+        cli.main(
+            [
+                "history",
+                "candidates",
+                "--state-root",
+                str(state),
+                "--snapshot",
+                "snapshot-1",
+                "--format",
+                "json",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out)["snapshot"]["snapshot_id"] == "snapshot-1"
+    empty_state = tmp_path / "empty-state"
+    HistoryLedger.create(empty_state, writer_id="writer")
+    assert cli.main(["history", "candidates", "--state-root", str(empty_state)]) == 2
+    assert "snapshot not found" in capsys.readouterr().out
 
 
 def test_history_list_explicitly_reports_uninitialized_and_corrupt_index(tmp_path, capsys):

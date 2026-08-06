@@ -4,6 +4,7 @@ from vcs_tree.scanner import find_repo_roots, vcs_tree
 
 __all__ = ["find_repo_roots", "vcs_tree"]
 __version__ = "0.1.0"
+from .candidate import project_current_workspaces
 from .delta import DeltaCalculator, HistoryDeltaCalculator
 from .enrichment import EnrichmentResult, PulseEnricher
 from .git_adapter import GitAdapter, GitObservation
@@ -125,6 +126,7 @@ __all__ = [
     "discover_repository_roots",
     "DeltaCalculator",
     "HistoryDeltaCalculator",
+    "project_current_workspaces",
     "PulseOrchestrator",
     "PulseSelectionError",
     "QUERY_SCHEMA",

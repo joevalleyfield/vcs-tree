@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from vcs_tree.candidate import project_current_workspaces
 from vcs_tree.delta import HistoryDeltaCalculator
 from vcs_tree.enrichment import PulseEnricher
 from vcs_tree.ledger import HistoryLedger, LedgerError, resolve_paths
@@ -50,6 +51,7 @@ def _build_history_parser() -> argparse.ArgumentParser:
         ("list", "List retained snapshots"),
         ("pulse", "Capture and compare a movement pulse"),
         ("query", "Evaluate a mechanical history query"),
+        ("candidates", "Project current workspace evidence"),
     ):
         sub = history_sub.add_parser(name, help=help_text)
         sub.add_argument("--state-root", help="Authoritative state directory")
@@ -78,6 +80,11 @@ def _build_history_parser() -> argparse.ArgumentParser:
         "--capture", action="store_true", help="Capture a new observation before evaluating"
     )
     query.add_argument("--format", choices=("summary", "audit", "json"), default="summary")
+    candidates = history_sub.choices["candidates"]
+    candidates.add_argument("path", nargs="?", default=".")
+    candidates.add_argument("--snapshot")
+    candidates.add_argument("--max-entries", type=int, default=256)
+    candidates.add_argument("--format", choices=("summary", "json"), default="json")
     return parser
 
 
@@ -214,6 +221,42 @@ def _history_main(args: argparse.Namespace) -> int:
         return 0
     try:
         ledger = HistoryLedger.open(state_root)
+        if args.history_command == "candidates":
+            entries = [
+                item for item in ledger.read_snapshots() if isinstance(item.get("manifest"), dict)
+            ]
+            if args.snapshot is not None:
+                selected = next(
+                    (item for item in entries if item.get("snapshot_id") == args.snapshot), None
+                )
+            else:
+                selected = max(
+                    entries,
+                    key=lambda item: (item.get("generation", -1), str(item.get("snapshot_id", ""))),
+                    default=None,
+                )
+            if selected is None:
+                raise ValueError("snapshot not found")
+            document = project_current_workspaces(
+                selected["manifest"], max_entries=args.max_entries
+            )
+            if args.format == "json":
+                _print_json(document)
+            else:
+                print(
+                    f"current workspace evidence {document['scope']['root']} "
+                    f"generation {document['snapshot']['generation']}"
+                )
+                for repository in document["repositories"]:
+                    print(f"{repository['path']} [{repository['mode']}]")
+                    for workspace in repository["workspaces"]:
+                        current = workspace["current"]
+                        print(
+                            f"  {workspace['workspace_key']}: "
+                            f"{current.get('object_id') or 'unknown'} "
+                            f"({workspace['working_copy']['recorded_state']})"
+                        )
+            return 0
         if args.history_command == "query":
             queries = read_queries(args.where, args.where_file)
             target = args.snapshot
