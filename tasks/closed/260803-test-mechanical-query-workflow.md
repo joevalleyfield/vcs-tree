@@ -3,15 +3,12 @@ FKA:
 AKA: query black-box acceptance; review-evidence e2e
 Legacy index:
 
-keywords: testing, blocked, e2e, query, compatibility, git, jj
+keywords: testing, closed, e2e, query, compatibility, git, jj
 
 Parent: `260803-define-backlog-review-pressure`
 Depends on: `260803-collect-current-working-copy-evidence`; `260803-index-temporal-fact-intervals`; `260803-evaluate-mechanical-predicates`; `260803-expose-mechanical-query-cli`
 Blocks:
-Blocked by: `260803-collect-current-working-copy-evidence`;
-  `260803-index-temporal-fact-intervals`;
-  `260803-evaluate-mechanical-predicates`;
-  `260803-expose-mechanical-query-cli`
+Blocked by:
 Related: `260802-end-to-end-workflow-testing`; `260802-feature-behavioral-testing`
 
 # Test the Mechanical Query Workflow End to End
@@ -64,14 +61,15 @@ repositories, or retained machine-local ledger may be modified.
 
 ## Completion Evidence
 
-- Installed-entry-point black-box tests cover the complete workflow in
-  temporary repositories and state roots.
-- The test suite proves source fixtures receive only the explicitly permitted
-  jj working-copy snapshot side effect.
-- `scripts/check` passes with 100% statement and branch coverage and successful
-  package build.
-- Closure records total tests and representative command/output assertions.
+- Added installed-entry-point black-box coverage for Git-unborn capture,
+  retained snapshot stdin queries, malformed and missing snapshot handling,
+  factual output modes, and jj virtual-root initialization.
+- Tests assert source repositories remain unchanged, retained queries avoid a
+  second collection, and output contains evidence without policy conclusions.
+- `scripts/check` passes: 381 tests, 100% statement and branch coverage, Ruff,
+  and package builds.
 
 ## Next Actions
 
-- Claim after the public query workflow closes.
+- No further action in this task; the mechanical query workflow is ready for
+  downstream cutover review.

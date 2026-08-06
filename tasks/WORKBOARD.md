@@ -45,7 +45,7 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
+- _No open tasks._
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
@@ -57,8 +57,8 @@
 - `260803-version-mechanical-evidence-schema` — Implement the snapshot-v2 model and v1 compatibility boundary required by `planning/mechanical-review-dispatch.md` without changing native collection commands or adding predicate e...
 - `260803-test-nested-repository-features` — Add focused behavioral tests for nested repository discovery, ownership, deduplication, boundaries, and deterministic reporting.
 - `260803-test-nested-repository-e2e` — Exercise nested Git/jj discovery through the installed CLI and confirm the operator-visible output and persisted snapshots match the feature contract.
+- `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
 - `260803-sync-workboard` — Adapt the proven task-inventory synchronizer from `../toas` so this repository's Open Queue is generated from `tasks/open/`, while recent closures and the relationship view remain ...
-- `260803-separate-publication-hints` — Represented Git refs and jj bookmarks as distinct publication-related authorities that annotate, but never define, jj change movement.
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence
