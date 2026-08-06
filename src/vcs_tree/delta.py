@@ -280,6 +280,7 @@ class HistoryDeltaCalculator:
                     "repository_key": key,
                     "path": location,
                     "mode": source.get("mode"),
+                    "workspace_family": source.get("workspace_family"),
                     "events": [item.to_dict() for item in events],
                 }
             )

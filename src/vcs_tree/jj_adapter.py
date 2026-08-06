@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -40,11 +40,20 @@ class JjObservation:
     history_boundary: HistoryBoundary
     collection: dict[str, CollectionOutcome]
     observed_at: str | None = None
+    workspace_family: dict = field(
+        default_factory=lambda: {
+            "family_id": None,
+            "kind": "jj_operation_store",
+            "source": "config-id",
+            "outcome": {"state": "unknown", "errors": []},
+        }
+    )
 
     def to_dict(self) -> dict:
         return {
             "root": str(self.root),
             "store_hint": self.store_hint,
+            "workspace_family": self.workspace_family,
             "workspaces": list(self.workspaces),
             "bookmarks": list(self.bookmarks),
             "visible_heads": list(self.visible_heads),
@@ -191,6 +200,7 @@ class JjAdapter:
                 self.observed_at,
             )
         root = Path(root_output.strip())
+        workspace_family, family_outcome = self._workspace_family()
         working_copy, working_copy_outcome, path_outcome = self._working_copy()
         workspaces, workspace_outcome = self._workspaces()
         workspaces = self._attach_working_copy(workspaces, working_copy)
@@ -208,6 +218,7 @@ class JjAdapter:
             HistoryBoundary(HistoryBoundaryState.COMPLETE),
             {
                 "identity": _outcome(CollectionState.COMPLETE),
+                "workspace_family": family_outcome,
                 "workspaces": workspace_outcome,
                 "bookmarks": bookmark_outcome,
                 "visible_heads": visible_outcome,
@@ -216,6 +227,7 @@ class JjAdapter:
                 "path_evidence": path_outcome,
             },
             self.observed_at,
+            workspace_family,
         )
 
     def _read_current(
@@ -364,6 +376,33 @@ class JjAdapter:
             return pointer.read_text(encoding="utf-8").strip() or str(pointer)
         except OSError:
             return str(pointer) if pointer.exists() else None
+
+    def _workspace_family(self) -> tuple[dict, CollectionOutcome]:
+        """Read jj's path-independent operation-store identity."""
+        pointer = self.path / ".jj" / "repo"
+        try:
+            target = pointer
+            if pointer.is_file():
+                target = (pointer.parent / pointer.read_text(encoding="utf-8").strip()).resolve()
+            value = (target / "config-id").read_text(encoding="utf-8").strip().lower()
+            if not value:
+                raise ValueError("jj config-id is empty")
+        except (OSError, ValueError) as exc:
+            error = _error("identity_unavailable", "jj.workspace_family", str(exc))
+            family = {
+                "family_id": None,
+                "kind": "jj_operation_store",
+                "source": "config-id",
+                "outcome": _outcome(CollectionState.ERROR, error).to_dict(),
+            }
+            return family, _outcome(CollectionState.ERROR, error)
+        family = {
+            "family_id": f"jj-config-id:{value}",
+            "kind": "jj_operation_store",
+            "source": "config-id",
+            "outcome": _outcome(CollectionState.COMPLETE).to_dict(),
+        }
+        return family, _outcome(CollectionState.COMPLETE)
 
     def _workspaces(self) -> tuple[tuple[dict, ...], CollectionOutcome]:
         template = (

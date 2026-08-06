@@ -18,6 +18,12 @@ def test_projection_keeps_identity_workspace_parents_completeness_and_bounds(tmp
         {
             "repository_key": "repo-1",
             "mode": "jj",
+            "workspace_family": {
+                "family_id": "jj-config-id:abc",
+                "kind": "jj_operation_store",
+                "source": "config-id",
+                "outcome": {"state": "complete", "errors": []},
+            },
             "locations": [{"path": "/workspace/project"}],
             "collection": {"jj_workspaces": {"state": "complete", "errors": []}},
             "workspaces": [
@@ -50,6 +56,7 @@ def test_projection_keeps_identity_workspace_parents_completeness_and_bounds(tmp
     assert workspace["working_copy"]["entries_truncated"] is True
     assert workspace["working_copy"]["entries_total"] is None
     assert repository["completeness"]["jj_workspaces"]["state"] == "complete"
+    assert repository["workspace_family"]["family_id"] == "jj-config-id:abc"
 
 
 def test_projection_rejects_negative_bounds_and_empty_workspace_repositories():

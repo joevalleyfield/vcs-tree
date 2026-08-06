@@ -359,3 +359,21 @@ def test_snapshot_warning_extraction_and_default_fake_delta_fallback():
     ).run("/workspace")
     assert pulse.movement["state"] == "empty"
     assert _pulse_repository({"repository_key": "a", "locations": [{}]}, ())["path"] is None
+
+
+def test_pulse_repository_preserves_workspace_family_identity():
+    result = _pulse_repository(
+        {
+            "repository_key": "repo-1",
+            "mode": "jj",
+            "path": "toas",
+            "workspace_family": {
+                "family_id": "jj-config-id:abc",
+                "kind": "jj_operation_store",
+                "source": "config-id",
+                "outcome": {"state": "complete", "errors": []},
+            },
+        },
+        (),
+    )
+    assert result["workspace_family"]["family_id"] == "jj-config-id:abc"

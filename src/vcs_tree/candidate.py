@@ -97,6 +97,15 @@ def project_current_workspaces(
                 "repository_key": repository.get("repository_key"),
                 "path": _path(repository, root),
                 "mode": repository.get("mode", "unknown"),
+                "workspace_family": repository.get(
+                    "workspace_family",
+                    {
+                        "family_id": None,
+                        "kind": "jj_operation_store",
+                        "source": "config-id",
+                        "outcome": {"state": "unknown", "errors": []},
+                    },
+                ),
                 "workspaces": [
                     _workspace(workspace, max_entries=max_entries)
                     for workspace in workspaces

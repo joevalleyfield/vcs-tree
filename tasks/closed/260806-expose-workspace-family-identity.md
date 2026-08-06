@@ -16,6 +16,10 @@ Related: `/Users/tim/Documents/Journal/objectives/scale-vcs-tree-recurring-consu
 
 # Expose Factual Workspace-Family Identity
 
+## Status
+
+Completed on 2026-08-06.
+
 Let public consumers recognize several linked jj workspace paths as views of
 one operation/repository without collapsing their distinct local evidence.
 
@@ -93,3 +97,18 @@ unreadable metadata are not merged by guesswork.
 1. Claim under the Engineer role and settle the stable family identifier and
    incomplete-identity contract before changing collection.
 
+## Completion Evidence
+
+- jj collection reads the native `.jj/repo/config-id` from primary and linked
+  workspace metadata, emitting a path-independent `jj-config-id:<value>` family
+  id. Missing or unreadable identity is reported as an error with a null id;
+  independent stores therefore cannot be merged by path or change id.
+- Snapshot repositories, delta repository records, pulse repositories, and
+  current-workspace candidate projections preserve the family relationship
+  while retaining distinct repository paths, keys, workspace roles, and
+  completeness facts.
+- Contract documentation records the identity source, Git-only
+  `not_requested` behavior, and no-guessing rule for incomplete identity.
+- Controlled linked-store and unavailable/empty-identity fixtures pass.
+- `scripts/check`: Ruff passed; 395 tests passed at 100% statement and branch
+  coverage; `uv build` passed.

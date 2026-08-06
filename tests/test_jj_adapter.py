@@ -58,6 +58,8 @@ def test_parsers_reject_malformed_records(parser, value):
 def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     (tmp_path / ".jj").mkdir()
     (tmp_path / ".jj" / "repo").write_text("../shared/.jj/repo\n", encoding="utf-8")
+    (tmp_path / "shared" / ".jj" / "repo").mkdir(parents=True)
+    (tmp_path / "shared" / ".jj" / "repo" / "config-id").write_text("ABC123\n", encoding="utf-8")
     responses = iter(
         [
             completed(str(tmp_path)),
@@ -72,6 +74,7 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
     observation = JjAdapter(tmp_path, runner=lambda _command: next(responses)).collect()
     assert observation.root == tmp_path
     assert observation.store_hint == "../shared/.jj/repo"
+    assert observation.workspace_family["family_id"] == "jj-config-id:abc123"
     assert observation.workspaces[0]["current"]["change_id"] == "change"
     assert observation.workspaces[0]["working_copy"]["freshness"] == "current"
     assert observation.workspaces[0]["working_copy"]["entries"][0]["path"] == "file"
@@ -87,6 +90,21 @@ def test_successful_collection_includes_all_jj_surfaces(tmp_path):
         {"object_id": {"algorithm": "jj", "value": "q"}, "change_id": None},
     ]
     assert observation.to_dict()["root"] == str(tmp_path)
+
+
+def test_workspace_family_unknown_when_config_id_is_unavailable(tmp_path):
+    (tmp_path / ".jj").mkdir()
+    observation = JjAdapter(
+        tmp_path,
+        runner=lambda command: completed(str(tmp_path)) if command[0] == "root" else completed(),
+    ).collect()
+    assert observation.workspace_family["family_id"] is None
+    assert observation.workspace_family["outcome"]["state"] == "error"
+    (tmp_path / ".jj" / "repo").mkdir()
+    (tmp_path / ".jj" / "repo" / "config-id").write_text("\n", encoding="utf-8")
+    family, outcome = JjAdapter(tmp_path)._workspace_family()
+    assert family["family_id"] is None
+    assert outcome.state is CollectionState.ERROR
 
 
 def test_identity_error_isolated(tmp_path):

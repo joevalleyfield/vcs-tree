@@ -275,6 +275,7 @@ def _pulse_repository(
         "repository_key": repository.get("repository_key"),
         "path": path,
         "mode": repository.get("mode"),
+        "workspace_family": repository.get("workspace_family"),
         "events": event_items,
         "descriptions": list(repository.get("descriptions", ())),
         "path_evidence": path_evidence,

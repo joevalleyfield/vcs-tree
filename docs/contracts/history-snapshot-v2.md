@@ -65,6 +65,13 @@ factual presentation fields are preserved during typed round trips.
 
 Each workspace requires `workspace_key` and this working-copy record:
 
+JJ-backed repositories also expose `workspace_family` at repository scope. Its
+`family_id` is derived from jj's native `.jj/repo/config-id`, so linked
+workspaces share one store-scoped identity while their repository paths and
+workspace records remain distinct. If that identifier cannot be read, the
+family id is null and the `outcome` records the error; no path-derived family
+is guessed. Git-only repositories use `not_requested`.
+
 ```json
 {
   "outcome": {

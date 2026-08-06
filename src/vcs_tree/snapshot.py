@@ -375,6 +375,16 @@ class SnapshotCollector:
                 "object_format": "sha1",
                 "native_hint": jj.store_hint if jj else None,
             },
+            "workspace_family": (
+                jj.workspace_family
+                if jj
+                else {
+                    "family_id": None,
+                    "kind": "jj_operation_store",
+                    "source": "config-id",
+                    "outcome": _not_requested(),
+                }
+            ),
             "locations": [
                 {
                     "path": str(repository_root),
