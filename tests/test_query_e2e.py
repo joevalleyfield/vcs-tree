@@ -51,7 +51,9 @@ def test_git_unborn_query_outputs_factual_result_and_all_modes(tmp_path):
     state = tmp_path / "state"
     assert run_cli("history", "init", "--state-root", str(state)).returncode == 0
     where = json.dumps(query())
-    captured = run_cli("history", "query", "--state-root", str(state), str(repo), "--where", where)
+    captured = run_cli(
+        "history", "query", "--capture", "--state-root", str(state), str(repo), "--where", where
+    )
     assert captured.returncode == 0, captured.stderr
     summary = captured.stdout
     assert "history query" in summary and "true" in summary
@@ -70,7 +72,15 @@ def test_git_unborn_query_outputs_factual_result_and_all_modes(tmp_path):
     assert audit.returncode == 0 and "repository_key" in audit.stdout
     document = json.loads(
         run_cli(
-            "history", "query", "--state-root", str(state), "--where", where, "--format", "json"
+            "history",
+            "query",
+            "--state-root",
+            str(state),
+            "--where",
+            where,
+            "--format",
+            "json",
+            "--capture",
         ).stdout
     )
     assert document["results"][0]["evidence"]
@@ -144,6 +154,7 @@ def test_jj_root_parent_fact_is_queryable_without_policy_conclusion(tmp_path):
         "json",
         "--where",
         json.dumps(query()),
+        "--capture",
     )
     assert result.returncode == 0, result.stderr
     document = json.loads(result.stdout)

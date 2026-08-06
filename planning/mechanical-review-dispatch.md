@@ -143,13 +143,15 @@ No predicate is named for urgency, staleness, dormancy, health, priority, or
 The public command is provisionally:
 
 ```text
-vcs-tree history query PATH --where JSON [--format summary|audit|json]
+vcs-tree history query PATH --where JSON [--snapshot ID] [--capture]
+  [--format summary|audit|json]
 ```
 
 The exact argument framing may use a JSON file/stdin form if needed for safe
 shell usage, but the task MUST keep one canonical JSON predicate document.
 Summary is signal-first, audit includes false and indeterminate evaluations,
-and JSON is complete and deterministic. Match/no-match is exit 0, usable
+and JSON is complete and deterministic. Queries reuse retained evidence by
+default; `--capture` explicitly records a new observation. Match/no-match is exit 0, usable
 partial evidence is exit 3, operational failure is exit 4, and CLI usage stays
 exit 2.
 

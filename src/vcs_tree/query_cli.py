@@ -141,12 +141,16 @@ def execute_query(
     *,
     path: str | Path = ".",
     snapshot_id: str | None = None,
+    capture: bool = False,
     evaluated_at: str | None = None,
     collector: SnapshotCollector | None = None,
     progress: Callable[[str], None] | None = None,
 ) -> tuple[dict[str, Any], str | None]:
+    if capture and snapshot_id is not None:
+        raise ValueError("--capture cannot be combined with --snapshot")
     target = snapshot_id
-    if snapshot_id is None:
+    performed = capture
+    if capture:
         result = (collector or SnapshotCollector(ledger)).collect(Path(path).resolve())
         target = result.envelope.snapshot_id
         index = (
@@ -154,17 +158,30 @@ def execute_query(
             if progress
             else ledger.read_temporal_index()
         )
-    else:
+    elif snapshot_id is not None:
         index, _ = (
             _index_for_snapshot(ledger, snapshot_id, progress=progress)
             if progress
             else _index_for_snapshot(ledger, snapshot_id)
         )
+    else:
+        entries = ledger.read_snapshots()
+        retained = [item for item in entries if isinstance(item.get("generation"), int)]
+        target = max(
+            retained,
+            key=lambda item: (item["generation"], str(item.get("snapshot_id", ""))),
+            default={},
+        ).get("snapshot_id")
+        index = (
+            ledger.read_temporal_index(progress=progress)
+            if progress
+            else ledger.read_temporal_index()
+        )
     try:
         evaluated = PredicateEvaluator().evaluate(query, index, evaluated_at=evaluated_at or _now())
     except Exception as exc:
         raise QueryExecutionError(str(exc), snapshot_id=target) from exc
-    evaluated["capture"] = {"snapshot_id": target, "performed": snapshot_id is None}
+    evaluated["capture"] = {"snapshot_id": target, "performed": performed}
     return evaluated, target
 
 

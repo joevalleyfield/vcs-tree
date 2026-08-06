@@ -88,3 +88,6 @@ rebuild cost.
   keeping JSON stdout machine-clean.
 - Focused cache/progress tests and the full quality gate pass: 389 tests,
   100% statement and branch coverage, Ruff, and `uv build`.
+- Query capture is now explicit: without `--capture`, the command evaluates
+  retained evidence and performs no observation; `--capture` records a new
+  snapshot and cannot be combined with `--snapshot`.

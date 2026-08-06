@@ -467,11 +467,17 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
                 "components": [],
             }
 
+        def read_snapshots(self):
+            return [{"snapshot_id": "retained", "generation": 1}]
+
     monkeypatch.setattr(
         query_cli.PredicateEvaluator, "evaluate", lambda self, *args, **kwargs: {"results": []}
     )
     result, target = query_cli.execute_query(
-        FakeLedger(), HistoryQuery.from_dict(_query_document()), collector=FakeCollector()
+        FakeLedger(),
+        HistoryQuery.from_dict(_query_document()),
+        collector=FakeCollector(),
+        capture=True,
     )
     assert target == "captured" and result["capture"]["performed"]
     monkeypatch.setattr(
@@ -491,6 +497,17 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
         FakeLedger(), HistoryQuery.from_dict(_query_document()), snapshot_id="retained"
     )
     assert target == "retained" and not result["capture"]["performed"]
+    result, target = query_cli.execute_query(
+        FakeLedger(), HistoryQuery.from_dict(_query_document())
+    )
+    assert target == "retained" and not result["capture"]["performed"]
+    with pytest.raises(ValueError, match="cannot be combined"):
+        query_cli.execute_query(
+            FakeLedger(),
+            HistoryQuery.from_dict(_query_document()),
+            snapshot_id="retained",
+            capture=True,
+        )
 
     def fail(*args, **kwargs):
         raise ValueError("bad evaluation")
@@ -498,7 +515,10 @@ def test_query_render_modes_and_execution_errors(monkeypatch):
     monkeypatch.setattr(query_cli.PredicateEvaluator, "evaluate", fail)
     with pytest.raises(query_cli.QueryExecutionError, match="bad evaluation") as error:
         query_cli.execute_query(
-            FakeLedger(), HistoryQuery.from_dict(_query_document()), collector=FakeCollector()
+            FakeLedger(),
+            HistoryQuery.from_dict(_query_document()),
+            collector=FakeCollector(),
+            capture=True,
         )
     assert error.value.snapshot_id == "captured"
 

@@ -69,6 +69,9 @@ def _build_history_parser() -> argparse.ArgumentParser:
     query.add_argument("--where")
     query.add_argument("--where-file")
     query.add_argument("--snapshot")
+    query.add_argument(
+        "--capture", action="store_true", help="Capture a new observation before evaluating"
+    )
     query.add_argument("--format", choices=("summary", "audit", "json"), default="summary")
     return parser
 
@@ -215,6 +218,7 @@ def _history_main(args: argparse.Namespace) -> int:
                     query,
                     path=args.path,
                     snapshot_id=args.snapshot,
+                    capture=args.capture,
                     progress=lambda message: print(f"[vcs-tree] {message}", file=sys.stderr),
                 )
             except QueryExecutionError as exc:
