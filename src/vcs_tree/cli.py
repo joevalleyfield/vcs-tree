@@ -13,6 +13,7 @@ from vcs_tree.enrichment import PulseEnricher
 from vcs_tree.ledger import HistoryLedger, LedgerError, resolve_paths
 from vcs_tree.pulse import PulseOrchestrator, PulseSelectionError
 from vcs_tree.pulse_render import render
+from vcs_tree.query_cli import QueryExecutionError, execute_query, read_query, render_query
 from vcs_tree.scanner import vcs_tree
 from vcs_tree.snapshot import SnapshotCollector
 
@@ -43,6 +44,7 @@ def _build_history_parser() -> argparse.ArgumentParser:
         ("delta", "Compare two persisted snapshots"),
         ("list", "List retained snapshots"),
         ("pulse", "Capture and compare a movement pulse"),
+        ("query", "Evaluate a mechanical history query"),
     ):
         sub = history_sub.add_parser(name, help=help_text)
         sub.add_argument("--state-root", help="Authoritative state directory")
@@ -62,6 +64,12 @@ def _build_history_parser() -> argparse.ArgumentParser:
     pulse.add_argument("--format", choices=("summary", "audit", "json"), default="summary")
     pulse.add_argument("--max-enrichment-objects", type=int, default=256)
     pulse.add_argument("--max-changed-paths", type=int, default=10_000)
+    query = history_sub.choices["query"]
+    query.add_argument("path", nargs="?", default=".")
+    query.add_argument("--where")
+    query.add_argument("--where-file")
+    query.add_argument("--snapshot")
+    query.add_argument("--format", choices=("summary", "audit", "json"), default="summary")
     return parser
 
 
@@ -198,6 +206,23 @@ def _history_main(args: argparse.Namespace) -> int:
         return 0
     try:
         ledger = HistoryLedger.open(state_root)
+        if args.history_command == "query":
+            query = read_query(args.where, args.where_file)
+            target = args.snapshot
+            try:
+                document, target = execute_query(
+                    ledger, query, path=args.path, snapshot_id=args.snapshot
+                )
+            except QueryExecutionError as exc:
+                target = exc.snapshot_id
+                payload = {"status": "error", "error": str(exc), "capture": {"snapshot_id": target}}
+                _print_json(payload) if args.format == "json" else print(
+                    f"query error (snapshot: {target}): {exc}"
+                )
+                return 4
+            print(render_query(document, args.format))
+            outcomes = [item.get("outcome") for item in document.get("results", [])]
+            return 3 if "indeterminate" in outcomes else 0
         if args.history_command == "pulse":
 
             def collector_factory(store):

@@ -3,12 +3,12 @@ FKA:
 AKA: history query command; evidence query rendering
 Legacy index:
 
-keywords: cli, blocked, query, rendering, json, audit, summary
+keywords: cli, closed, query, rendering, json, audit, summary
 
 Parent: `260803-define-backlog-review-pressure`
 Depends on: `260803-evaluate-mechanical-predicates`
 Blocks: `260803-test-mechanical-query-workflow`
-Blocked by: `260803-evaluate-mechanical-predicates`
+Blocked by:
 Related: `260802-expose-pulse-output-workflow`; `260805-delta-presentation-surfaces`
 
 # Expose the Mechanical Query Workflow
@@ -83,7 +83,29 @@ the baseline script, live resource files, host schedulers, or review logic.
 - Golden summary/audit/JSON examples remain free of opinionated review labels.
 - `scripts/check` passes with 100% statement and branch coverage.
 
+## Decisions
+
+- The public command owns capture-or-retained-boundary orchestration; semantic
+  truth remains entirely in `PredicateEvaluator`.
+- Summary is signal-first and reports omitted false repository detail; audit
+  retains every repository result and JSON is the complete canonical envelope.
+- A successful capture keeps its snapshot ID in an operational error response
+  if evaluation fails. Explicit snapshots are validated and never replaced by
+  another generation.
+
+## Completion Evidence
+
+- Added `history query [PATH]` with inline/file/stdin query input, retained
+  snapshot selection, current v2 capture, summary/audit/JSON rendering, and
+  exit codes 0/3/4/2 for complete, indeterminate, operational, and usage
+  outcomes.
+- Added focused CLI/orchestration tests for every input, renderer, snapshot
+  validation, capture failure, and exit branch. Golden output contains only
+  factual outcomes and provenance.
+- `scripts/check` passes: 378 tests, 100% statement and branch coverage, Ruff,
+  and package builds.
+
 ## Next Actions
 
-- Claim after predicate evaluation closes.
-
+- Claim `260803-test-mechanical-query-workflow`; exercise the installed command
+  end to end against snapshot, working-copy, temporal, and rendering surfaces.

@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
 > **Status:** Mechanical predicates complete; query CLI ready; cutover pending
-> **Last Sync:** 2026-08-04
+> **Last Sync:** 2026-08-06
 
 ## 0. Manual Triage
 
@@ -45,7 +45,6 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260803-expose-mechanical-query-cli` — Add the public history query command and deterministic summary, audit, and JSON surfaces without adding semantic review ranking or host scheduling.
 - `260803-test-mechanical-query-workflow` — Exercise snapshot v2, working-copy refresh/fallback, temporal intervals, predicate evaluation, and public query rendering through the installed command without changing production ...
 <!-- WORKBOARD:OPEN:END -->
 

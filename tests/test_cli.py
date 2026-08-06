@@ -4,8 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from vcs_tree import cli
+from vcs_tree import cli, query_cli
 from vcs_tree.ledger import HistoryLedger, LedgerError
+from vcs_tree.predicate_models import HistoryQuery
 
 
 def test_main_forwards_cli_options(monkeypatch):
@@ -404,3 +405,223 @@ def test_entry_point_uses_process_arguments_for_history_help(monkeypatch, capsys
     with pytest.raises(SystemExit, match="0"):
         cli.main()
     assert "Inspect durable history" in capsys.readouterr().out
+
+
+def _query_document():
+    return {
+        "schema": "vcs-tree.history-query",
+        "schema_version": 1,
+        "scope": {"all": True},
+        "where": {
+            "fact": {"type": "repository-exists", "attributes": {}, "state": "ever_observed"}
+        },
+    }
+
+
+def test_query_input_inline_file_stdin_and_validation(tmp_path, monkeypatch):
+    assert query_cli.read_query(json.dumps(_query_document()), None).to_dict() == _query_document()
+    query_file = tmp_path / "query.json"
+    query_file.write_text(json.dumps(_query_document()))
+    assert query_cli.read_query(None, str(query_file)).to_dict() == _query_document()
+    monkeypatch.setattr(
+        "sys.stdin", type("Input", (), {"read": lambda self: json.dumps(_query_document())})()
+    )
+    assert query_cli.read_query(None, "-").to_dict() == _query_document()
+    for where, where_file, expected in (
+        (None, None, "exactly one"),
+        ("{}", str(query_file), "exactly one"),
+        ("not-json", None, "invalid query JSON"),
+        ("{}", None, "invalid query schema"),
+    ):
+        with pytest.raises(ValueError, match=expected):
+            query_cli.read_query(where, where_file)
+
+
+def test_query_render_modes_and_execution_errors(monkeypatch):
+    document = {
+        "results": [
+            {"repository_key": "b", "outcome": "false"},
+            {"repository_key": "a", "outcome": "indeterminate"},
+            {"repository_key": "c", "outcome": "true"},
+        ],
+        "capture": {"snapshot_id": "s"},
+    }
+    assert "omitted" in query_cli.render_query(document, "summary")
+    assert '"repository_key": "b"' in query_cli.render_query(document, "audit")
+    assert query_cli.render_query(document, "json").startswith("{")
+
+    class FakeCollector:
+        def collect(self, path):
+            return type(
+                "Result", (), {"envelope": type("Envelope", (), {"snapshot_id": "captured"})()}
+            )()
+
+    class FakeLedger:
+        def read_temporal_index(self):
+            return {
+                "schema": "vcs-tree.temporal-facts",
+                "schema_version": 1,
+                "facts": [],
+                "components": [],
+            }
+
+    monkeypatch.setattr(
+        query_cli.PredicateEvaluator, "evaluate", lambda self, *args, **kwargs: {"results": []}
+    )
+    result, target = query_cli.execute_query(
+        FakeLedger(), HistoryQuery.from_dict(_query_document()), collector=FakeCollector()
+    )
+    assert target == "captured" and result["capture"]["performed"]
+    monkeypatch.setattr(
+        query_cli,
+        "_index_for_snapshot",
+        lambda ledger, snapshot: (
+            {
+                "schema": "vcs-tree.temporal-facts",
+                "schema_version": 1,
+                "facts": [],
+                "components": [],
+            },
+            snapshot,
+        ),
+    )
+    result, target = query_cli.execute_query(
+        FakeLedger(), HistoryQuery.from_dict(_query_document()), snapshot_id="retained"
+    )
+    assert target == "retained" and not result["capture"]["performed"]
+
+    def fail(*args, **kwargs):
+        raise ValueError("bad evaluation")
+
+    monkeypatch.setattr(query_cli.PredicateEvaluator, "evaluate", fail)
+    with pytest.raises(query_cli.QueryExecutionError, match="bad evaluation") as error:
+        query_cli.execute_query(
+            FakeLedger(), HistoryQuery.from_dict(_query_document()), collector=FakeCollector()
+        )
+    assert error.value.snapshot_id == "captured"
+
+
+def test_query_snapshot_selection_errors_and_no_false_summary(monkeypatch):
+    class Ledger:
+        store_id = "store"
+        entries = []
+
+        def read_temporal_index(self):
+            return {
+                "schema": "vcs-tree.temporal-facts",
+                "schema_version": 1,
+                "facts": [],
+                "components": [],
+            }
+
+        def read_snapshots(self):
+            return self.entries
+
+        def read_objects(self):
+            return {}
+
+    ledger = Ledger()
+    with pytest.raises(ValueError, match="snapshot not found"):
+        query_cli._index_for_snapshot(ledger, "missing")
+    for manifest, message in (
+        (None, "no retained"),
+        ({"history_store": {"store_id": "other"}}, "different"),
+        (
+            {"history_store": {"store_id": "store"}, "schema": "bad", "schema_version": 1},
+            "unsupported",
+        ),
+    ):
+        ledger.entries = [{"snapshot_id": "s", "generation": 1, "manifest": manifest}]
+        with pytest.raises(ValueError, match=message):
+            query_cli._index_for_snapshot(ledger, "s")
+    ledger.entries = [
+        {
+            "snapshot_id": "s",
+            "generation": "bad",
+            "manifest": {
+                "history_store": {"store_id": "store"},
+                "schema": "vcs-tree.history-snapshot",
+                "schema_version": 1,
+            },
+        }
+    ]
+    with pytest.raises(ValueError, match="valid generation"):
+        query_cli._index_for_snapshot(ledger, "s")
+    ledger.entries = [
+        {
+            "snapshot_id": "s",
+            "generation": 1,
+            "manifest": {
+                "history_store": {"store_id": "store"},
+                "schema": "vcs-tree.history-snapshot",
+                "schema_version": 1,
+            },
+        },
+        {"snapshot_id": "later", "generation": "bad"},
+    ]
+    monkeypatch.setattr(
+        query_cli.TemporalIndexBuilder,
+        "build",
+        lambda self, *args, **kwargs: {
+            "schema": "vcs-tree.temporal-facts",
+            "schema_version": 1,
+            "facts": [],
+            "components": [],
+        },
+    )
+    index, selected = query_cli._index_for_snapshot(ledger, "s")
+    assert selected == "s" and index["source_generation"] == 1
+    assert query_cli._index_for_snapshot(ledger, None)[0]["schema_version"] == 1
+    assert "omitted" not in query_cli.render_query(
+        {"results": [{"outcome": "true"}], "capture": {}}, "summary"
+    )
+
+
+def test_query_cli_success_and_indeterminate_exit(tmp_path, monkeypatch, capsys):
+    state = tmp_path / "state"
+    HistoryLedger.create(state, writer_id="writer")
+    monkeypatch.setattr(
+        cli,
+        "execute_query",
+        lambda *args, **kwargs: (
+            {"results": [{"outcome": "indeterminate"}], "capture": {"snapshot_id": "s"}},
+            "s",
+        ),
+    )
+    monkeypatch.setattr(cli, "render_query", lambda document, mode: "rendered")
+    assert (
+        cli.main(
+            [
+                "history",
+                "query",
+                "--state-root",
+                str(state),
+                "--where",
+                json.dumps(_query_document()),
+            ]
+        )
+        == 3
+    )
+    assert capsys.readouterr().out.strip() == "rendered"
+    monkeypatch.setattr(
+        cli,
+        "execute_query",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            query_cli.QueryExecutionError("failed", snapshot_id="captured")
+        ),
+    )
+    assert (
+        cli.main(
+            [
+                "history",
+                "query",
+                "--state-root",
+                str(state),
+                "--format",
+                "json",
+                "--where",
+                json.dumps(_query_document()),
+            ]
+        )
+        == 4
+    )
