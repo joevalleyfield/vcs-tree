@@ -236,7 +236,7 @@ def test_jj_change_graph_event_vocabulary_and_heads():
     assert {event["event"] for event in events} >= {"visible_head_added", "visible_head_removed"}
 
 
-def test_jj_graph_partial_keeps_positive_movement_and_suppresses_loss():
+def test_jj_graph_partial_suppresses_recovery_and_visibility_loss():
     old = graph(changes=(change("gone", (version("g1"),)),), heads=(), state="partial")
     new = graph(changes=(change("new", (version("n1"),)),), heads=(), state="complete")
     events = (
@@ -247,8 +247,54 @@ def test_jj_graph_partial_keeps_positive_movement_and_suppresses_loss():
         )
         .repository_deltas[0]["events"]
     )
-    assert any(event["details"].get("state") == "introduced" for event in events)
+    assert any(event["event"] == "comparison_incomplete" for event in events)
+    assert not any(event["details"].get("state") == "introduced" for event in events)
     assert not any(event["details"].get("state") == "visibility_lost" for event in events)
+
+
+def test_jj_graph_recovery_does_not_call_newly_observable_changes_introduced():
+    old = graph(changes=(), heads=(), state="partial")
+    new = graph(changes=(change("recovered", (version("r1"),)),), heads=())
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(
+            snap("s", "a", 1, repo(change_graph=old)),
+            snap("s", "b", 2, repo(change_graph=new)),
+        )
+        .repository_deltas[0]["events"]
+    )
+    assert [event["event"] for event in events] == ["comparison_incomplete"]
+    assert events[0]["details"]["component"] == "change_graph"
+
+
+def test_jj_graph_recovery_does_not_call_partial_target_changes_introduced():
+    old = graph(changes=(), heads=())
+    new = graph(changes=(change("recovered", (version("r1"),)),), heads=(), state="partial")
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(
+            snap("s", "a", 1, repo(change_graph=old)),
+            snap("s", "b", 2, repo(change_graph=new)),
+        )
+        .repository_deltas[0]["events"]
+    )
+    assert [event["event"] for event in events] == ["comparison_incomplete"]
+
+
+def test_jj_graph_equal_divergent_versions_are_a_noop():
+    graph_data = graph(
+        changes=(change("same", (version("v1"), version("v2"))),),
+        heads=(),
+    )
+    events = (
+        HistoryDeltaCalculator()
+        .calculate(
+            snap("s", "a", 1, repo(change_graph=graph_data)),
+            snap("s", "b", 2, repo(change_graph=graph_data)),
+        )
+        .repository_deltas[0]["events"]
+    )
+    assert events == []
 
 
 def test_jj_graph_partial_topology_is_indeterminate_and_scan_scope_mismatch_is_explicit():

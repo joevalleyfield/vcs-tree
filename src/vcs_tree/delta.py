@@ -340,6 +340,31 @@ class HistoryDeltaCalculator:
                         )
                     )
         if old.get("change_graph") is not None or new.get("change_graph") is not None:
+            old_graph = old.get("change_graph") or {}
+            new_graph = new.get("change_graph") or {}
+            if not (
+                old_graph.get("outcome", {}).get("state") == "complete"
+                and new_graph.get("outcome", {}).get("state") == "complete"
+            ):
+                events.append(
+                    _event(
+                        "comparison_incomplete",
+                        "change_graph",
+                        {
+                            "component": "change_graph",
+                            "from_state": old_graph.get("outcome", {}).get(
+                                "state", "not_requested"
+                            ),
+                            "to_state": new_graph.get("outcome", {}).get("state", "not_requested"),
+                            "suppressed_events": [
+                                "change_versions_changed",
+                                "visible_head_added",
+                                "visible_head_removed",
+                            ],
+                        },
+                        certainty=Certainty.INDETERMINATE,
+                    )
+                )
             events.extend(self._change_graph(old, new))
         events.extend(self._workspaces(old, new, objects)) if _complete(
             old, "workspaces"
@@ -474,6 +499,8 @@ class HistoryDeltaCalculator:
             old_ids = sorted(_id(item.get("object_id")) for item in old_versions)
             new_ids = sorted(_id(item.get("object_id")) for item in new_versions)
             if before is None and after is not None:
+                if not (old_complete and new_complete):
+                    continue
                 state = "introduced"
             elif after is None:
                 if not (old_complete and new_complete):
@@ -490,7 +517,7 @@ class HistoryDeltaCalculator:
                     for version in new_versions
                     for parent in version.get("parents", ())
                 }
-                if len(new_ids) > 1:
+                if len(new_ids) > 1 and old_ids != new_ids:
                     state = "divergent"
                 elif len(old_ids) > 1 and len(new_ids) == 1:
                     state = "resolved"
@@ -519,17 +546,18 @@ class HistoryDeltaCalculator:
             )
         old_heads = {_id(item.get("object_id")) for item in old_graph.get("visible_heads", ())}
         new_heads = {_id(item.get("object_id")) for item in new_graph.get("visible_heads", ())}
-        for object_id in sorted(new_heads - old_heads):
-            result.append(
-                _event(
-                    "visible_head_added",
-                    object_id,
-                    {
-                        "object_id": object_id,
-                        "change_id": self._graph_change_id(new_graph, object_id),
-                    },
+        if old_complete and new_complete:
+            for object_id in sorted(new_heads - old_heads):
+                result.append(
+                    _event(
+                        "visible_head_added",
+                        object_id,
+                        {
+                            "object_id": object_id,
+                            "change_id": self._graph_change_id(new_graph, object_id),
+                        },
+                    )
                 )
-            )
         for object_id in sorted(old_heads - new_heads):
             if old_complete and new_complete:
                 result.append(

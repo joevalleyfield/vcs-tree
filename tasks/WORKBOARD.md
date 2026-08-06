@@ -45,7 +45,6 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260806-correct-movement-evidence` — Ensure pulse and delta report repository-state transitions rather than identical states or facts that merely became observable after incomplete collection.
 - `260806-group-movement-evidence` — Present factual movement as compact repository/change groups with descriptions, paths, and completeness so consumers do not reconstruct meaning from repeated low-level labels.
 - `260806-operationalize-query-index` — Make several factual questions over one accepted observation observable, reusable, and safe for recurring playbook execution.
 - `260806-project-review-candidate-evidence` — Expose a supported factual projection for current-workspace review questions without emitting review conclusions or requiring private-ledger joins.
@@ -55,6 +54,7 @@
 ## 2. Recent Closures
 
 <!-- WORKBOARD:CLOSED:START -->
+- `260806-correct-movement-evidence` — Suppressed false jj movement from equal version sets and incomplete-collection recovery while preserving explicit uncertainty.
 - `260806-history-completeness-and-bookmarks` — Make incomplete-history reports explainable and mode-aware so downstream dispatchers can distinguish tool gaps from repository movement.
 - `260805-delta-presentation-surfaces` — Separate operator-facing movement summaries from complete machine-readable delta documents while retaining an auditable way to inspect verified no-ops.
 - `260804-history-observability-and-index` — Make long-running history scans observable and expose a supported operator listing of retained snapshots.

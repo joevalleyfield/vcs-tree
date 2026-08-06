@@ -9,6 +9,8 @@ Parent: `260806-support-review-consumers`
 Blocks: `260806-group-movement-evidence`
 Related: `260806-history-completeness-and-bookmarks`
 
+Claimed by Engineer on 2026-08-06 for the bounded movement-evidence correction.
+
 # Correct Movement Evidence
 
 Ensure pulse and delta report repository-state transitions rather than
@@ -52,13 +54,26 @@ without supporting comparison evidence.
 - Preserve recovery and uncertainty without counting them as movement.
 - Reconcile pulse repository movement state and summary counts.
 
-## Evidence
+## Completion Evidence
 
-- Regression fixtures reproduce all four real-corpus cases.
-- The retained generation 12-to-13 pair reports no movement solely from equal
-  sets or observation recovery.
-- A controlled real unnamed jj change remains visible.
-- `scripts/check` passes with required coverage.
+- Focused jj graph fixtures cover equal divergent version sets, partial-to-
+  complete recovery, and complete-to-partial observation. Recovery now emits
+  an indeterminate `comparison_incomplete` event rather than introduced or
+  visibility movement; equal version sets emit no event.
+- Graph incompleteness is explicit and suppresses newly observable version and
+  visible-head additions, while complete graph changes remain visible.
+- The full suite passes with 384 tests and 100% statement and branch coverage.
+- Ruff format and lint pass, and `uv build` successfully produces the source
+  distribution and wheel. The repository's `.codex-local/bin/uvt` wrapper is
+  absent, so the equivalent `uv` commands used `UV_CACHE_DIR=/tmp/vcs-tree-uv-cache`.
+
+## Decisions
+
+- Existing `comparison_incomplete` is sufficient recovery visibility; no new
+  recovery event vocabulary is needed.
+- A graph event requires complete before/after graph evidence when it asserts
+  appearance or disappearance. A changed topology remains available as an
+  indeterminate factual comparison when both versions are present.
 
 ## Allowed Write Surfaces
 
@@ -66,7 +81,3 @@ without supporting comparison evidence.
 - focused movement tests and fixtures under `tests/`
 - movement contracts/docs if semantics require clarification
 - this task and `tasks/WORKBOARD.md`
-
-## Next Actions
-
-1. Capture the real pair as bounded regression evidence before changing logic.
