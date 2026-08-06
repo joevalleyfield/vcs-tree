@@ -1,5 +1,7 @@
 import json
 import runpy
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -575,6 +577,64 @@ def test_query_snapshot_selection_errors_and_no_false_summary(monkeypatch):
     assert "omitted" not in query_cli.render_query(
         {"results": [{"outcome": "true"}], "capture": {}}, "summary"
     )
+
+
+def test_historical_query_index_cache_reuses_valid_generation_and_rebuilds_stale(
+    monkeypatch, tmp_path
+):
+    class Ledger:
+        store_id = "store"
+        paths = SimpleNamespace(cache_root=tmp_path / "cache")
+        entries = [
+            {
+                "snapshot_id": "s",
+                "generation": 1,
+                "manifest": {
+                    "history_store": {"store_id": "store"},
+                    "schema": "vcs-tree.history-snapshot",
+                    "schema_version": 1,
+                },
+            }
+        ]
+
+        def read_snapshots(self):
+            return self.entries
+
+        def read_objects(self):
+            return {}
+
+    calls = []
+
+    def build(self, *args, **kwargs):
+        calls.append(kwargs.get("progress"))
+        return {
+            "schema": "vcs-tree.temporal-facts",
+            "schema_version": 1,
+            "store_id": "store",
+            "source_generation": 1,
+            "facts": [],
+            "components": [],
+        }
+
+    monkeypatch.setattr(query_cli.TemporalIndexBuilder, "build", build)
+    ledger = Ledger()
+    first_progress = []
+    second_progress = []
+    first, _ = query_cli._index_for_snapshot(ledger, "s", progress=first_progress.append)
+    second, _ = query_cli._index_for_snapshot(ledger, "s", progress=second_progress.append)
+    assert first == second and len(calls) == 1
+    assert "cache miss" in first_progress[0]
+    assert "cache hit" in second_progress[0]
+    query_cli._index_for_snapshot(ledger, "s")
+    assert len(calls) == 1
+    cache = next((tmp_path / "cache" / "temporal-index").glob("*.json"))
+    cache.write_text(cache.read_text().replace('"source_generation": 1', '"source_generation": 0'))
+    query_cli._index_for_snapshot(ledger, "s")
+    assert len(calls) == 2
+    monkeypatch.setattr(
+        Path, "write_text", lambda *args, **kwargs: (_ for _ in ()).throw(OSError())
+    )
+    query_cli._store_cached_index(tmp_path / "cache.json", first)
 
 
 def test_query_cli_success_and_indeterminate_exit(tmp_path, monkeypatch, capsys):

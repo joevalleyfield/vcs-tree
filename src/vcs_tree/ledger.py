@@ -12,6 +12,7 @@ import json
 import os
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -364,16 +365,23 @@ class HistoryLedger:
                 raise LedgerCorruptError("invalid retained snapshot manifest") from exc
         return documents
 
-    def rebuild_temporal_index(self) -> dict[str, Any]:
+    def rebuild_temporal_index(
+        self, *, progress: Callable[[str], None] | None = None
+    ) -> dict[str, Any]:
         """Replace the disposable temporal projection from authoritative observations."""
         index = TemporalIndexBuilder().build(
-            self.read_snapshots(), objects=self.read_objects(), store_id=self.store_id
+            self.read_snapshots(),
+            objects=self.read_objects(),
+            store_id=self.store_id,
+            progress=progress,
         )
         index["source_generation"] = self.generation
         _atomic_write(self.root / self._TEMPORAL, index)
         return index
 
-    def read_temporal_index(self) -> dict[str, Any]:
+    def read_temporal_index(
+        self, *, progress: Callable[[str], None] | None = None
+    ) -> dict[str, Any]:
         """Read a current derived index, rebuilding missing, corrupt, or stale data."""
         try:
             value = _read_checked(self.root / self._TEMPORAL)
@@ -387,7 +395,7 @@ class HistoryLedger:
                 raise LedgerCorruptError("invalid temporal fact index")
             return value
         except LedgerCorruptError:
-            return self.rebuild_temporal_index()
+            return self.rebuild_temporal_index(progress=progress)
 
 
 __all__ = [

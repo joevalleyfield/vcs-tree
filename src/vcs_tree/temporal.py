@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
@@ -682,7 +682,10 @@ class TemporalIndexBuilder:
         *,
         objects: Mapping[str, Mapping[str, Any]] | None = None,
         store_id: str | None = None,
+        progress: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
+        report = progress or (lambda _message: None)
+        report("temporal index: reading retained snapshots")
         items = []
         for position, value in enumerate(snapshots):
             item = _snapshot_item(value, position)
@@ -693,6 +696,7 @@ class TemporalIndexBuilder:
                     generation = document.history_store.generation
                 items.append((generation, document.captured_at, document.snapshot_id, document))
         items.sort(key=lambda item: item[:3])
+        report(f"temporal index: indexing {len(items)} snapshot(s)")
         store_ids = {item[3].history_store.store_id for item in items}
         if len(store_ids) > 1 or (store_id is not None and store_ids and store_id not in store_ids):
             raise ContractError("snapshots must use one matching history store")
@@ -702,7 +706,8 @@ class TemporalIndexBuilder:
         continuity_boundaries = []
         prior_locations: dict[tuple[str, str], str] = {}
         objects = objects or {}
-        for generation, _captured_at, snapshot_id, document in items:
+        for position, (generation, _captured_at, snapshot_id, document) in enumerate(items, 1):
+            report(f"temporal index: snapshot {position}/{len(items)} (generation {generation})")
             normalized = normalize_snapshot(document)
             source_snapshots.append(
                 {

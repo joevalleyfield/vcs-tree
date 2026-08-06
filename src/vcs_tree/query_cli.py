@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -44,8 +46,51 @@ def read_query(where: str | None, where_file: str | None) -> HistoryQuery:
         raise ValueError(f"invalid query schema: {exc}") from exc
 
 
+def _cache_path(ledger: HistoryLedger, generation: int) -> Path | None:
+    paths = getattr(ledger, "paths", None)
+    cache_root = getattr(paths, "cache_root", None)
+    store_id = getattr(ledger, "store_id", None)
+    if cache_root is None or not store_id:
+        return None
+    token = hashlib.sha256(str(store_id).encode()).hexdigest()[:16]
+    return Path(cache_root) / "temporal-index" / f"{token}-{generation}.json"
+
+
+def _cached_index(path: Path | None, store_id: str, generation: int) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if (
+        isinstance(value, dict)
+        and value.get("schema") == "vcs-tree.temporal-facts"
+        and value.get("schema_version") == 1
+        and value.get("store_id") == store_id
+        and value.get("source_generation") == generation
+    ):
+        return value
+    return None
+
+
+def _store_cached_index(path: Path | None, index: dict[str, Any]) -> None:
+    if path is None:
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.tmp")
+        temporary.write_text(json.dumps(index, sort_keys=True), encoding="utf-8")
+        temporary.replace(path)
+    except OSError:
+        return
+
+
 def _index_for_snapshot(
-    ledger: HistoryLedger, snapshot_id: str | None
+    ledger: HistoryLedger,
+    snapshot_id: str | None,
+    *,
+    progress: Callable[[str], None] | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     if snapshot_id is None:
         return ledger.read_temporal_index(), None
@@ -71,9 +116,21 @@ def _index_for_snapshot(
         for item in entries
         if isinstance(item.get("generation"), int) and item["generation"] <= generation
     ]
-    index = TemporalIndexBuilder().build(
-        eligible, objects=ledger.read_objects(), store_id=ledger.store_id
-    )
+    cache = _cache_path(ledger, generation)
+    index = _cached_index(cache, ledger.store_id, generation)
+    if index is not None:
+        if progress:
+            progress(f"temporal index: cache hit for generation {generation}")
+    else:
+        if progress:
+            progress(f"temporal index: cache miss for generation {generation}")
+        index = TemporalIndexBuilder().build(
+            eligible,
+            objects=ledger.read_objects(),
+            store_id=ledger.store_id,
+            progress=progress,
+        )
+        _store_cached_index(cache, index)
     index["source_generation"] = generation
     return index, snapshot_id
 
@@ -86,14 +143,23 @@ def execute_query(
     snapshot_id: str | None = None,
     evaluated_at: str | None = None,
     collector: SnapshotCollector | None = None,
+    progress: Callable[[str], None] | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     target = snapshot_id
     if snapshot_id is None:
         result = (collector or SnapshotCollector(ledger)).collect(Path(path).resolve())
         target = result.envelope.snapshot_id
-        index = ledger.read_temporal_index()
+        index = (
+            ledger.read_temporal_index(progress=progress)
+            if progress
+            else ledger.read_temporal_index()
+        )
     else:
-        index, _ = _index_for_snapshot(ledger, snapshot_id)
+        index, _ = (
+            _index_for_snapshot(ledger, snapshot_id, progress=progress)
+            if progress
+            else _index_for_snapshot(ledger, snapshot_id)
+        )
     try:
         evaluated = PredicateEvaluator().evaluate(query, index, evaluated_at=evaluated_at or _now())
     except Exception as exc:

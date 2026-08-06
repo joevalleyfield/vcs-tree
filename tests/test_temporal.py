@@ -482,6 +482,14 @@ def test_index_is_canonical_json():
     assert direct["source_generation"] == 1
 
 
+def test_builder_reports_progress_phases():
+    messages = []
+    TemporalIndexBuilder().build([snapshot(1, [repository(1)])], progress=messages.append)
+    assert messages[0] == "temporal index: reading retained snapshots"
+    assert messages[1] == "temporal index: indexing 1 snapshot(s)"
+    assert messages[-1] == "temporal index: snapshot 1/1 (generation 1)"
+
+
 def test_defensive_extraction_ignores_malformed_optional_presentation():
     complete = {"state": "complete", "attempted_at": timestamp(1), "errors": []}
     repository_value = {

@@ -211,7 +211,11 @@ def _history_main(args: argparse.Namespace) -> int:
             target = args.snapshot
             try:
                 document, target = execute_query(
-                    ledger, query, path=args.path, snapshot_id=args.snapshot
+                    ledger,
+                    query,
+                    path=args.path,
+                    snapshot_id=args.snapshot,
+                    progress=lambda message: print(f"[vcs-tree] {message}", file=sys.stderr),
                 )
             except QueryExecutionError as exc:
                 target = exc.snapshot_id
