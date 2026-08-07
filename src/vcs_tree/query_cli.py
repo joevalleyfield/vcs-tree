@@ -134,14 +134,50 @@ def _index_for_snapshot(
         if progress:
             progress(f"temporal index: cache hit for generation {generation}")
     else:
-        if progress:
-            progress(f"temporal index: cache miss for generation {generation}")
-        index = TemporalIndexBuilder().build(
-            eligible,
-            objects=ledger.read_objects(),
-            store_id=ledger.store_id,
-            progress=progress,
+        previous = _cached_index(
+            _cache_path(ledger, generation - 1), ledger.store_id, generation - 1
         )
+        previous_snapshots = previous.get("source_snapshots", ()) if previous else ()
+        can_extend = bool(
+            previous
+            and previous_snapshots
+            and previous_snapshots[-1].get("generation") == generation - 1
+            and previous_snapshots[-1].get("snapshot_id")
+            and any(
+                item.get("snapshot_id") == previous_snapshots[-1].get("snapshot_id")
+                for item in eligible
+            )
+        )
+        builder = TemporalIndexBuilder()
+        if can_extend:
+            if progress:
+                progress(f"temporal index: extending cache to generation {generation}")
+            try:
+                index = builder.extend(
+                    previous,
+                    selected,
+                    objects=ledger.read_objects(),
+                    store_id=ledger.store_id,
+                    progress=progress,
+                )
+            except Exception as exc:
+                if progress:
+                    progress(f"temporal index: extension fallback ({exc})")
+                index = builder.build(
+                    eligible,
+                    objects=ledger.read_objects(),
+                    store_id=ledger.store_id,
+                    progress=progress,
+                )
+        else:
+            if progress:
+                progress(f"temporal index: cache miss for generation {generation}; full rebuild")
+            index = builder.build(
+                eligible,
+                objects=ledger.read_objects(),
+                store_id=ledger.store_id,
+                progress=progress,
+            )
         _store_cached_index(cache, index)
     index["source_generation"] = generation
     return index, snapshot_id

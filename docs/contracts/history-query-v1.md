@@ -154,3 +154,11 @@ data and does not mutate the query, temporal index, snapshots, or repositories.
 The model/service API is exported as `HistoryQuery`, `PredicateNode`,
 `FactSelector`, and `PredicateEvaluator`. Public command parsing and rendering
 are specified separately.
+
+Temporal query indexes are disposable projections. When a retained target is
+exactly one generation after a valid cached projection, the service may extend
+that projection with the target snapshot and report an extension progress
+event. Store, schema, source-generation continuity, and snapshot identity are
+validated first; missing, corrupt, incompatible, or discontinuous state falls
+back to a full rebuild. The full rebuild remains the correctness oracle and
+authoritative snapshots are never changed by either path.

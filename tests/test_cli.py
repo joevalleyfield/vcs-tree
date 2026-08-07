@@ -744,6 +744,133 @@ def test_historical_query_index_cache_reuses_valid_generation_and_rebuilds_stale
     query_cli._store_cached_index(tmp_path / "cache.json", first)
 
 
+def test_historical_query_index_extends_consecutive_generation_cache(monkeypatch, tmp_path):
+    class Ledger:
+        store_id = "store"
+        paths = SimpleNamespace(cache_root=tmp_path / "cache")
+        entries = [
+            {
+                "snapshot_id": "s1",
+                "generation": 1,
+                "manifest": {
+                    "history_store": {"store_id": "store"},
+                    "schema": "vcs-tree.history-snapshot",
+                    "schema_version": 1,
+                },
+            },
+            {
+                "snapshot_id": "s2",
+                "generation": 2,
+                "manifest": {
+                    "history_store": {"store_id": "store"},
+                    "schema": "vcs-tree.history-snapshot",
+                    "schema_version": 1,
+                },
+            },
+        ]
+
+        def read_snapshots(self):
+            return self.entries
+
+        def read_objects(self):
+            return {}
+
+    calls = []
+
+    def build(self, *args, **kwargs):
+        calls.append("build")
+        return {
+            "schema": "vcs-tree.temporal-facts",
+            "schema_version": 1,
+            "store_id": "store",
+            "source_generation": 1,
+            "source_snapshots": [{"snapshot_id": "s1", "generation": 1}],
+            "facts": [],
+            "components": [],
+            "continuity_boundaries": [],
+        }
+
+    def extend(self, previous, snapshot, **kwargs):
+        calls.append(("extend", snapshot["snapshot_id"]))
+        return {
+            **previous,
+            "source_generation": 2,
+            "source_snapshots": [
+                *previous["source_snapshots"],
+                {"snapshot_id": "s2", "generation": 2},
+            ],
+        }
+
+    monkeypatch.setattr(query_cli.TemporalIndexBuilder, "build", build)
+    monkeypatch.setattr(query_cli.TemporalIndexBuilder, "extend", extend)
+    ledger = Ledger()
+    query_cli._index_for_snapshot(ledger, "s1")
+    progress = []
+    index, selected = query_cli._index_for_snapshot(ledger, "s2", progress=progress.append)
+    assert selected == "s2"
+    assert index["source_generation"] == 2
+    assert calls == ["build", ("extend", "s2")]
+    assert any("extending cache" in item for item in progress)
+
+
+def test_historical_query_index_extension_failure_rebuilds(monkeypatch, tmp_path):
+    class Ledger:
+        store_id = "store"
+        paths = SimpleNamespace(cache_root=tmp_path / "cache")
+        entries = [
+            {
+                "snapshot_id": "s1",
+                "generation": 1,
+                "manifest": {
+                    "history_store": {"store_id": "store"},
+                    "schema": "vcs-tree.history-snapshot",
+                    "schema_version": 1,
+                },
+            },
+            {
+                "snapshot_id": "s2",
+                "generation": 2,
+                "manifest": {
+                    "history_store": {"store_id": "store"},
+                    "schema": "vcs-tree.history-snapshot",
+                    "schema_version": 1,
+                },
+            },
+        ]
+
+        def read_snapshots(self):
+            return self.entries
+
+        def read_objects(self):
+            return {}
+
+    def build(self, *args, **kwargs):
+        return {
+            "schema": "vcs-tree.temporal-facts",
+            "schema_version": 1,
+            "store_id": "store",
+            "source_generation": 1,
+            "source_snapshots": [{"snapshot_id": "s1", "generation": 1}],
+            "facts": [],
+            "components": [],
+            "continuity_boundaries": [],
+        }
+
+    def fail_extend(*args, **kwargs):
+        raise ValueError("ambiguous extension")
+
+    monkeypatch.setattr(query_cli.TemporalIndexBuilder, "build", build)
+    monkeypatch.setattr(query_cli.TemporalIndexBuilder, "extend", fail_extend)
+    ledger = Ledger()
+    query_cli._index_for_snapshot(ledger, "s1")
+    progress = []
+    query_cli._index_for_snapshot(ledger, "s2", progress=progress.append)
+    assert any("extension fallback" in item for item in progress)
+    ledger = Ledger()
+    query_cli._index_for_snapshot(ledger, "s1")
+    query_cli._index_for_snapshot(ledger, "s2")
+
+
 def test_query_cli_success_and_indeterminate_exit(tmp_path, monkeypatch, capsys):
     state = tmp_path / "state"
     HistoryLedger.create(state, writer_id="writer")

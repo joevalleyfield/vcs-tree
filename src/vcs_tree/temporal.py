@@ -792,6 +792,128 @@ class TemporalIndexBuilder:
             ),
         }
 
+    def extend(
+        self,
+        previous: Mapping[str, Any],
+        snapshot: Mapping[str, Any],
+        *,
+        objects: Mapping[str, Mapping[str, Any]] | None = None,
+        store_id: str | None = None,
+        progress: Callable[[str], None] | None = None,
+    ) -> dict[str, Any]:
+        """Apply exactly one consecutive snapshot to a validated projection."""
+        if (
+            previous.get("schema") != TEMPORAL_SCHEMA
+            or previous.get("schema_version") != TEMPORAL_SCHEMA_VERSION
+        ):
+            raise ContractError("incompatible temporal index")
+        item = _snapshot_item(snapshot, 0)
+        if item is None:
+            raise ContractError("snapshot has no retained manifest")
+        generation, manifest = item
+        document = parse_snapshot(manifest)
+        if document.history_store.store_id != (store_id or previous.get("store_id")):
+            raise ContractError("snapshot store does not match temporal index")
+        if generation != previous.get("source_generation", 0) + 1:
+            raise ContractError("snapshot generation is not consecutive")
+        report = progress or (lambda _message: None)
+        report(f"temporal index: extending to generation {generation}")
+        records = {item["fact_key"]: _copy(item) for item in previous.get("facts", ())}
+        components = {item["component_key"]: _copy(item) for item in previous.get("components", ())}
+        source_snapshots = _copy(list(previous.get("source_snapshots", ())))
+        continuity_boundaries = _copy(list(previous.get("continuity_boundaries", ())))
+        prior_locations: dict[tuple[str, str], str] = {}
+        for record in records.values():
+            if record.get("fact_type") != "repository-exists":
+                continue
+            attributes = record.get("attributes", {})
+            if attributes.get("scope") and attributes.get("path"):
+                prior_locations[(attributes["scope"], attributes["path"])] = record[
+                    "repository_key"
+                ]
+        normalized = normalize_snapshot(document)
+        snapshot_id = document.snapshot_id
+        source_snapshots.append(
+            {
+                "snapshot_id": snapshot_id,
+                "generation": generation,
+                "schema_version": document.schema_version,
+            }
+        )
+        scope = str(document.scan.get("root", ""))
+        scan_outcome = document.scan.get("outcome", {})
+        scan_state = str(scan_outcome.get("state", "unknown"))
+        scan_errors = tuple(
+            item for item in scan_outcome.get("errors", ()) if isinstance(item, Mapping)
+        )
+        scan_observed_at = document.captured_at if scan_state != "not_requested" else None
+        repository_facts = []
+        objects = objects or {}
+        for repository in normalized["repositories"]:
+            repository_key = str(repository["repository_key"])
+            locations = repository.get("facts", {}).get("locations", ())
+            path = ""
+            if locations and isinstance(locations[0], Mapping):
+                path = str(locations[0].get("path", ""))
+            if path:
+                previous_key = prior_locations.get((scope, path))
+                if previous_key is not None and previous_key != repository_key:
+                    continuity_boundaries.append(
+                        {
+                            "snapshot_id": snapshot_id,
+                            "scope": scope,
+                            "path": path,
+                            "before_repository_key": previous_key,
+                            "after_repository_key": repository_key,
+                        }
+                    )
+                prior_locations[(scope, path)] = repository_key
+            repository_facts.append(
+                _fact(
+                    "repository-exists",
+                    repository_key,
+                    "repository_identity",
+                    (),
+                    {"repository_key": repository_key, "scope": scope, "path": path or None},
+                    component_key=f"scan:{_part(scope)}:repository_identity",
+                )
+            )
+            for observation in _repository_observations(repository, snapshot_id, objects):
+                _apply_observation(records, components, observation)
+        continuity_lost = any(
+            item["snapshot_id"] == snapshot_id and item["scope"] == scope
+            for item in continuity_boundaries
+        )
+        _apply_observation(
+            records,
+            components,
+            ComponentObservation(
+                f"scan:{_part(scope)}:repository_identity",
+                None,
+                "repository_identity",
+                scan_state,
+                scan_observed_at,
+                "snapshot",
+                snapshot_id,
+                scan_errors,
+                tuple(sorted(repository_facts, key=lambda item: item.fact_key)),
+                absence_authorized=not continuity_lost,
+            ),
+        )
+        return {
+            "schema": TEMPORAL_SCHEMA,
+            "schema_version": TEMPORAL_SCHEMA_VERSION,
+            "store_id": store_id or previous.get("store_id"),
+            "source_generation": generation,
+            "source_snapshots": source_snapshots,
+            "components": [components[key] for key in sorted(components)],
+            "facts": [records[key] for key in sorted(records)],
+            "continuity_boundaries": sorted(
+                continuity_boundaries,
+                key=lambda item: (item["snapshot_id"], item["scope"], item["path"]),
+            ),
+        }
+
 
 def fact_state(index: Mapping[str, Any], key: str) -> dict[str, Any]:
     """Return active/inactive state or explicit negative-infinity never-observed state."""

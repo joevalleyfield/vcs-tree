@@ -15,6 +15,10 @@ Related: `/Users/tim/Documents/Journal/objectives/scale-vcs-tree-recurring-consu
 
 # Extend the Temporal Index Across Generations
 
+## Status
+
+Completed on 2026-08-06.
+
 Reuse a validated prior-generation temporal projection when evaluating the
 next retained generation instead of rebuilding every historical snapshot.
 
@@ -84,3 +88,19 @@ snapshots remain unchanged and a full rebuild remains the correctness oracle.
 1. Claim under the Engineer role and first encode extension-versus-rebuild
    equivalence plus discontinuity fallback as tests.
 
+## Completion Evidence
+
+- Added a validated `TemporalIndexBuilder.extend()` path that applies one
+  consecutive retained snapshot to copied fact intervals, component clocks,
+  tombstones, reappearance episodes, and continuity boundaries.
+- Historical query cache resolution now attempts generation-N extension from a
+  valid generation-N-1 cache, reports extension/fallback/full-rebuild progress,
+  writes the new projection atomically, and preserves exact-generation cache
+  hits. Any extension exception safely falls back to the complete rebuild.
+- Golden tests prove extension equals a clean rebuild for ref replacement and
+  interval state; gap, store mismatch, incompatible/corrupt inputs, extension
+  failure, repository identity boundaries, and missing paths are covered.
+- Query contract documents disposable projection, validation, fallback, and
+  authoritative-snapshot invariants.
+- `scripts/check`: Ruff passed; 400 tests passed at 100% statement and branch
+  coverage; `uv build` passed.

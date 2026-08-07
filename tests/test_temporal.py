@@ -482,6 +482,46 @@ def test_index_is_canonical_json():
     assert direct["source_generation"] == 1
 
 
+def test_extension_matches_full_rebuild_for_consecutive_generation():
+    first = snapshot(1, [repository(1, refs=[ref("main", "a"), ref("side", "s")])])
+    second = snapshot(2, [repository(2, refs=[ref("main", "b")])])
+    builder = TemporalIndexBuilder()
+    base = builder.build([first], store_id=STORE)
+    extended = builder.extend(base, second, store_id=STORE)
+    rebuilt = builder.build([first, second], store_id=STORE)
+    assert extended == rebuilt
+
+
+def test_extension_rejects_gaps_and_store_mismatch():
+    builder = TemporalIndexBuilder()
+    base = builder.build([snapshot(1, [])], store_id=STORE)
+    with pytest.raises(ContractError, match="consecutive"):
+        builder.extend(base, snapshot(3, []), store_id=STORE)
+    mismatched = snapshot(2, [])
+    mismatched["manifest"]["history_store"]["store_id"] = "other"
+    with pytest.raises(ContractError, match="store"):
+        builder.extend(base, mismatched, store_id=STORE)
+    with pytest.raises(ContractError, match="incompatible"):
+        builder.extend({"schema": "wrong", "schema_version": 1}, snapshot(2, []), store_id=STORE)
+    with pytest.raises(ContractError, match="manifest"):
+        builder.extend(base, {"snapshot_id": "bare"}, store_id=STORE)
+
+
+def test_extension_tracks_location_identity_boundaries_and_missing_paths():
+    first_repo = repository(1)
+    first_missing_path = repository(1, repository_key="repo-3")
+    first_missing_path.pop("locations")
+    first = snapshot(1, [first_repo, first_missing_path])
+    second_repo = repository(2, repository_key="repo-2")
+    missing_path_repo = repository(2, repository_key="repo-3")
+    missing_path_repo.pop("locations")
+    second = snapshot(2, [second_repo, missing_path_repo])
+    builder = TemporalIndexBuilder()
+    base = builder.build([first], store_id=STORE)
+    extended = builder.extend(base, second, store_id=STORE)
+    assert extended["continuity_boundaries"]
+
+
 def test_builder_reports_progress_phases():
     messages = []
     TemporalIndexBuilder().build([snapshot(1, [repository(1)])], progress=messages.append)
