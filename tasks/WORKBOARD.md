@@ -1,7 +1,7 @@
 # vcs-tree Workboard
 
 > **Status:** Mechanical predicates complete; query CLI ready; cutover pending
-> **Last Sync:** 2026-08-06
+> **Last Sync:** 2026-08-16
 
 ## 0. Manual Triage
 
@@ -45,7 +45,7 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- _No open tasks._
+- `260816-document-discoverability` — Make the package's implemented history, pulse, query, and workspace-evidence capabilities discoverable to operators and downstream consumers.
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
