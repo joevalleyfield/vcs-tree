@@ -30,6 +30,103 @@ type markers. The module form is equivalent:
 uv run python -m vcs_tree ~/Documents
 ```
 
+The default scanner is still the compatibility-preserving invocation. The
+durable observation and analysis workflows are grouped under `history`:
+
+```bash
+vcs-tree --help
+vcs-tree history --help
+```
+
+## Capabilities and command reference
+
+`vcs-tree` has two consumer surfaces:
+
+- The operator CLI discovers Git, jj, colocated, nested, and linked-workspace
+  state, persists versioned observations, and renders factual movement and
+  evidence.
+- The importable `vcs_tree` package exposes the same observation models and
+  deterministic projections for callers that need to make their own review,
+  scheduling, or health decisions.
+
+### Scanner
+
+```text
+vcs-tree [PATH] [--flat] [--text-symbols]
+```
+
+Scans a directory and renders the current working-copy state. It writes only
+the disposable renderer cache described below.
+
+### Durable history workflows
+
+All history commands accept `--state-root PATH`, which selects the
+machine-local authoritative ledger. Initialize it once before collecting
+snapshots:
+
+```bash
+vcs-tree history init --state-root PATH
+vcs-tree history inspect --state-root PATH
+```
+
+| Command | Purpose | Output |
+| --- | --- | --- |
+| `history snapshot [PATH]` | Discover repositories and persist one observation | Canonical snapshot JSON on stdout; progress on stderr |
+| `history list` | List retained snapshots without scanning repositories | Deterministic snapshot index JSON |
+| `history delta --from ID --to ID` | Compare two retained observations | Signal-first summary; use `--format json` for the full contract |
+| `history pulse [PATH]` | Capture a new observation and report movement since the selected baseline | Summary, `--format audit`, or canonical JSON |
+| `history query [PATH]` | Evaluate factual temporal predicates | Summary, audit, or canonical query-result JSON |
+| `history candidates [PATH]` | Project current working-copy evidence for review consumers | JSON by default or `--format summary` |
+
+Useful workflow options include `history delta --all` for verified no-op
+repositories, `history delta --events-only` for a compact event document,
+`history pulse --from ID` for an explicit baseline, `history query --where
+JSON` or `--where-file PATH` for predicates, and `history query --capture` to
+collect the observation before evaluating it. `query` and `candidates` can
+also target a retained snapshot with `--snapshot ID`.
+
+History collection preserves incomplete and unreadable components as factual
+outcomes rather than silently treating them as no movement. A complete
+operation returns 0; an incomplete or partial observation generally returns
+2 or 3 according to the command contract, and an operational failure returns
+4. Inspect the emitted JSON and stderr diagnostics when a non-zero result
+needs triage.
+
+The normative formats and boundaries are:
+
+- [History snapshot v1](docs/contracts/history-snapshot-v1.md) and
+  [snapshot v2](docs/contracts/history-snapshot-v2.md) — retained
+  observations, repository/workspace shape, completeness, and compatibility.
+- [History delta v1](docs/contracts/history-delta-v1.md) — movement events,
+  jj change graphs, refs, file evidence, and uncertainty.
+- [History query v1](docs/contracts/history-query-v1.md) — factual predicates
+  and result envelopes.
+- [Temporal facts v1](docs/contracts/temporal-facts-v1.md) — rebuildable
+  fact intervals and component evidence.
+- [Nested discovery v1](docs/contracts/nested-discovery-v1.md) — ownership,
+  aliases, deduplication, and scan boundaries.
+- [Recurring pulse adapters](docs/recurring-pulse.md) — foreground,
+  background, cron, and launchd invocation patterns.
+
+### Importable API
+
+The package API is intended for consumers that need structured facts rather
+than terminal rendering. The main groups are:
+
+- `SnapshotCollector`, `SnapshotEnvelope`, `SnapshotEnvelopeV2`, and the
+  Git/jj adapters for collection and schema-aware observation.
+- `HistoryLedger`, `HistoryDeltaCalculator`, and `TemporalIndexBuilder` for
+  retained state, comparisons, and temporal projections.
+- `PredicateEvaluator`, `HistoryQuery`, and predicate models for mechanical
+  evidence evaluation.
+- `PulseOrchestrator`, `PulseEnricher`, and
+  `project_current_workspaces` for movement and current-workspace evidence.
+
+These APIs provide facts and evidence; callers decide review priority,
+project health, scheduling, and follow-up actions. Versioned documents under
+`docs/contracts/` are the compatibility boundary. Internal helpers and the
+incubation path are not supported integration surfaces.
+
 ## Local State Warning
 
 The current command writes only a disposable renderer cache under

@@ -45,12 +45,13 @@
 ## 1. Open Queue
 
 <!-- WORKBOARD:OPEN:START -->
-- `260816-document-discoverability` — Make the package's implemented history, pulse, query, and workspace-evidence capabilities discoverable to operators and downstream consumers.
+- _No open tasks._
 <!-- WORKBOARD:OPEN:END -->
 
 ## 2. Recent Closures
 
 <!-- WORKBOARD:CLOSED:START -->
+- `260816-document-discoverability` — Make the package's implemented history, pulse, query, and workspace-evidence capabilities discoverable to operators and downstream consumers.
 - `260806-support-review-consumers` — Turn the 2026-08-06 playbook trial into factual, supported affordances that let an external reviewer spend attention on domain judgment rather than ledger mechanics.
 - `260806-project-review-candidate-evidence` — Expose a supported factual projection for current-workspace review questions without emitting review conclusions or requiring private-ledger joins.
 - `260806-operationalize-query-index` — Make several factual questions over one accepted observation observable, reusable, and safe for recurring playbook execution.
@@ -58,7 +59,6 @@
 - `260806-group-movement-evidence` — Present factual movement as compact repository/change groups with descriptions, paths, and completeness so consumers do not reconstruct meaning from repeated low-level labels.
 - `260806-extend-temporal-index` — 260806 extend temporal index
 - `260806-expose-workspace-family-identity` — 260806 expose workspace family identity
-- `260806-correct-movement-evidence` — Ensure pulse and delta report repository-state transitions rather than identical states or facts that merely became observable after incomplete collection.
 <!-- WORKBOARD:CLOSED:END -->
 
 ### Curated closure evidence

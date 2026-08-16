@@ -32,7 +32,18 @@ def test_help_exits_successfully(capsys):
     with pytest.raises(SystemExit, match="0"):
         cli.main(["--help"])
 
-    assert "Parallel VCS repo scanner" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Parallel VCS repo scanner" in output
+    assert "vcs-tree history --help" in output
+
+
+def test_history_help_lists_complete_workflow_family(capsys):
+    with pytest.raises(SystemExit, match="0"):
+        cli.main(["history", "--help"])
+
+    output = capsys.readouterr().out
+    for command in ("init", "inspect", "snapshot", "delta", "list", "pulse", "query", "candidates"):
+        assert command in output
 
 
 def test_module_launcher_exits_with_main_result(monkeypatch):

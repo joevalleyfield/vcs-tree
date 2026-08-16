@@ -29,6 +29,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vcs-tree",
         description="Parallel VCS repo scanner with stall-detection display.",
+        epilog=(
+            "History workflows are available with 'vcs-tree history --help': "
+            "init, inspect, snapshot, delta, list, pulse, query, and candidates."
+        ),
     )
     parser.add_argument("path", nargs="?", default=".", help="Directory to scan (default: .)")
     parser.add_argument("--flat", action="store_true", help="Flat mode (no directory hierarchy)")

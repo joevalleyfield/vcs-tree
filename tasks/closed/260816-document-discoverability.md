@@ -3,7 +3,7 @@ FKA:
 AKA: capability-discoverability, command-reference
 Legacy index:
 
-keywords: active, documentation, discoverability, cli, history, pulse, query
+keywords: historical, documentation, discoverability, cli, history, pulse, query
 
 Parent:
 Depends on:
@@ -104,8 +104,15 @@ consumer groupings and preserve the incubation/cutover boundary.
 - Each supported history subcommand is represented in the README with a
   runnable synopsis and a link to deeper guidance where applicable.
 - README references resolve to existing files and examples match the parser.
-- `scripts/check` passes when source or tests are changed; otherwise the
-  applicable documentation/task checks pass.
+- Added a top-level help epilog pointing operators to
+  `vcs-tree history --help`; CLI tests verify the entry point and all eight
+  history commands.
+- Added a README capability map, command reference, state/output guidance,
+  API overview, and links to all relevant contracts and operational guides.
+- `scripts/check` passed Ruff formatting, Ruff lint, 401 tests, and 100%
+  statement/branch coverage. Its initial `uv build` attempt was blocked by
+  sandbox DNS; the approved retry built both the source distribution and
+  wheel successfully.
 
 ## Decisions
 
@@ -115,11 +122,11 @@ consumer groupings and preserve the incubation/cutover boundary.
 
 ## Open Fronts
 
-- Decide whether top-level help should gain a true `history` subparser or a
-  concise epilog while preserving the scanner's positional compatibility.
+- None for this bounded discoverability task. A future CLI redesign may
+  replace the compatibility-preserving epilog with a true top-level
+  subparser.
 
 ## Next Actions
 
-- Audit the current help output and README against the parser.
-- Implement the smallest coherent help and documentation update.
-- Verify links, examples, and command help, then close this task with evidence.
+- Keep the command reference aligned when future history commands or output
+  contracts are added.
